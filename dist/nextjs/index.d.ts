@@ -3,5 +3,5 @@ import { CoreIAM } from '../core';
 export declare class NextHandlers {
     private iam;
     constructor(iam: CoreIAM);
-    handleProxy(req: NextRequest, path: string): Promise<NextResponse<any>>;
+    handleProxy(req: NextRequest, internalPath: string): Promise<NextResponse<any>>;
 }
