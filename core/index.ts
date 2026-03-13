@@ -1,28 +1,3 @@
-// // core/index.ts
-// export interface CoreIAMConfig {
-//     baseUrl: string;
-//     apiKey: string;
-//     tenantId: string;
-//   }
-  
-//   export class CoreIAM {
-//     constructor(private config: CoreIAMConfig) {}
-  
-//     async proxy(path: string, init: RequestInit, incomingHeaders: Headers) {
-//       const url = `${this.config.baseUrl}${path}`;
-//       const headers = new Headers(init.headers);
-//       headers.set('X-API-Key', this.config.apiKey);
-//       headers.set('x-tenant-id', this.config.tenantId);
-  
-//       const cookie = incomingHeaders.get('cookie');
-//       if (cookie) headers.set('cookie', cookie);
-  
-//       const response = await fetch(url, { ...init, headers });
-//       return response;
-//     }
-//   }
-
-
 // /var/www/coreIAM/sdk/javascript/core/index.ts
 export interface CoreIAMConfig {
     baseUrl: string;
@@ -46,7 +21,15 @@ export interface CoreIAMConfig {
   
       // Explicitly forward Cookie from incoming request
       const cookie = incomingHeaders.get('cookie');
-      if (cookie) headers.set('cookie', cookie);
+    if (cookie) {
+      headers.set('cookie', cookie);
+
+      // AUTOMATIC INJECTION: Extract JWT from cookie and add to Authorization header
+      const jwtMatch = cookie.match(/jwt=([^;]+)/);
+      if (jwtMatch) {
+        headers.set('Authorization', `Bearer ${jwtMatch[1]}`);
+      }
+    }
   
       // Explicitly forward CSRF from incoming request (for POST/PUT)
       const csrf = incomingHeaders.get('x-csrf-token');
