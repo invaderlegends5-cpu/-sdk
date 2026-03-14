@@ -7,32 +7,68 @@
 //   }
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CoreIAM = void 0;
+const DEFAULT_GATEWAY_URL = "https://coreiam.e-qalam.com";
 class CoreIAM {
     baseUrl = '';
     apiKey = '';
     tenantId = '';
+    /**
+       * Encodes the 2-key pattern.
+       * If no baseUrl is provided, it uses the production default.
+       */
+    static generateKey(prefix, tenantId, baseUrl) {
+        const url = (baseUrl || DEFAULT_GATEWAY_URL).replace(/\/$/, '');
+        const payload = typeof window !== 'undefined'
+            ? btoa(`${url}|${tenantId}`)
+            : Buffer.from(`${url}|${tenantId}`).toString('base64');
+        return `${prefix}_test_${payload}`;
+    }
+    static decodeKey(key) {
+        try {
+            const parts = key.split('_');
+            const payload = parts.length === 3 ? parts[2] : parts[0];
+            const decoded = typeof window !== 'undefined'
+                ? atob(payload)
+                : Buffer.from(payload, 'base64').toString('utf-8');
+            const [baseUrl, tenantId] = decoded.split('|');
+            return { baseUrl, tenantId };
+        }
+        catch (e) {
+            return { baseUrl: '', tenantId: '' };
+        }
+    }
+    // constructor(config?: CoreIAMConfig) {
+    //   const secretKey = config?.apiKey || process.env.COREIAM_SECRET_KEY;
+    //   const publishableKey = process.env.NEXT_PUBLIC_COREIAM_PUBLISHABLE_KEY;
+    //   const targetKey = secretKey || publishableKey;
+    //   if (!targetKey) {
+    //     throw new Error('CoreIAM: Missing COREIAM_SECRET_KEY or NEXT_PUBLIC_COREIAM_PUBLISHABLE_KEY');
+    //   }
+    //   this.apiKey = secretKey || '';
+    //   // Extract Base64 payload from pk_test_PAYLOAD or sk_test_PAYLOAD
+    //   try {
+    //     const parts = targetKey.split('_');
+    //     const payload = parts.length === 3 ? parts[2] : parts[0];
+    //     const decoded = Buffer.from(payload, 'base64').toString('utf-8');
+    //     const [decodedBaseUrl, decodedTenantId] = decoded.split('|');
+    //     this.baseUrl = config?.baseUrl || decodedBaseUrl;
+    //     this.tenantId = config?.tenantId || decodedTenantId;
+    //   } catch (e) {
+    //     // Fallback for non-encoded legacy keys
+    //     this.baseUrl = config?.baseUrl || '';
+    //     this.tenantId = config?.tenantId || '';
+    //   }
+    // }
     constructor(config) {
         const secretKey = config?.apiKey || process.env.COREIAM_SECRET_KEY;
         const publishableKey = process.env.NEXT_PUBLIC_COREIAM_PUBLISHABLE_KEY;
         const targetKey = secretKey || publishableKey;
-        if (!targetKey) {
-            throw new Error('CoreIAM: Missing COREIAM_SECRET_KEY or NEXT_PUBLIC_COREIAM_PUBLISHABLE_KEY');
-        }
+        if (!targetKey)
+            throw new Error('CoreIAM: Missing Keys');
         this.apiKey = secretKey || '';
-        // Extract Base64 payload from pk_test_PAYLOAD or sk_test_PAYLOAD
-        try {
-            const parts = targetKey.split('_');
-            const payload = parts.length === 3 ? parts[2] : parts[0];
-            const decoded = Buffer.from(payload, 'base64').toString('utf-8');
-            const [decodedBaseUrl, decodedTenantId] = decoded.split('|');
-            this.baseUrl = config?.baseUrl || decodedBaseUrl;
-            this.tenantId = config?.tenantId || decodedTenantId;
-        }
-        catch (e) {
-            // Fallback for non-encoded legacy keys
-            this.baseUrl = config?.baseUrl || '';
-            this.tenantId = config?.tenantId || '';
-        }
+        const { baseUrl, tenantId } = CoreIAM.decodeKey(targetKey);
+        this.baseUrl = config?.baseUrl || baseUrl;
+        this.tenantId = config?.tenantId || tenantId;
     }
     async proxy(path, init, incomingHeaders) {
         const url = `${this.baseUrl}${path}`;

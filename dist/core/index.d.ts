@@ -7,6 +7,15 @@ export declare class CoreIAM {
     private baseUrl;
     private apiKey;
     private tenantId;
+    /**
+       * Encodes the 2-key pattern.
+       * If no baseUrl is provided, it uses the production default.
+       */
+    static generateKey(prefix: 'pk' | 'sk', tenantId: string, baseUrl?: string): string;
+    static decodeKey(key: string): {
+        baseUrl: string;
+        tenantId: string;
+    };
     constructor(config?: CoreIAMConfig);
     proxy(path: string, init: RequestInit, incomingHeaders: Headers): Promise<Response>;
     getCsrfToken(headers: Headers): Promise<Response>;
