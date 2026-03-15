@@ -18,7 +18,12 @@
       "types": "./dist/nextjs/index.d.ts",
       "import": "./dist/nextjs/index.js",
       "require": "./dist/nextjs/index.js"
-    }
+    },
+"./nextjs/actions": {
+    "types": "./dist/nextjs/actions.d.ts",
+    "import": "./dist/nextjs/actions.js",
+    "require": "./dist/nextjs/actions.js"
+  }
   },
   "files": [
     "dist"
