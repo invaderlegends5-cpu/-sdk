@@ -172,46 +172,14 @@ static decodeKey(key: string): { baseUrl: string; tenantId: string } {
   }
 
   async login(body: any, headers: Headers) {
-    // 1. Handshake: Get CSRF token internally
-    const csrfRes = await this.getCsrfToken(headers);
-    const { csrfToken } = await csrfRes.json().catch(() => ({}));
-
-    const finalHeaders = new Headers(headers);
-    if (csrfToken) {
-      finalHeaders.set('x-csrf-token', csrfToken);
-      // Pass the cookie from the CSRF response to ensure token validity
-      const setCookie = csrfRes.headers.get('set-cookie');
-      if (setCookie) finalHeaders.set('cookie', setCookie);
-    }
-
-    // 2. Proxy to your existing /auth/login path
-    return this.proxy('/auth/login', { 
-      method: 'POST', 
-      body: JSON.stringify(body) 
-    }, finalHeaders);
+    return this.proxy('/auth/login', { method: 'POST', body: JSON.stringify(body) }, headers);
   }
 
   async register(body: any, headers: Headers) {
-    // 1. Handshake: Get CSRF token internally
-    const csrfRes = await this.getCsrfToken(headers);
-    const { csrfToken } = await csrfRes.json().catch(() => ({}));
-
-    const finalHeaders = new Headers(headers);
-    if (csrfToken) {
-      finalHeaders.set('x-csrf-token', csrfToken);
-      const setCookie = csrfRes.headers.get('set-cookie');
-      if (setCookie) finalHeaders.set('cookie', setCookie);
-    }
-
-    // 2. Proxy to your existing /auth/register path
-    return this.proxy('/auth/register', { 
-      method: 'POST', 
-      body: JSON.stringify(body) 
-    }, finalHeaders);
+    return this.proxy('/auth/register', { method: 'POST', body: JSON.stringify(body) }, headers);
   }
 
   async logout(headers: Headers) {
-    // Strictly uses your /auth/logout path
     return this.proxy('/auth/logout', { method: 'POST' }, headers);
   }
 }
