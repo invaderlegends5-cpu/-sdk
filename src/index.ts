@@ -1,1 +1,0 @@
-export { CoreIAMClient } from './core/client';
