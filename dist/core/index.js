@@ -100,18 +100,28 @@ class CoreIAM {
     async logout(headers) {
         return this.proxy('/auth/logout', { method: 'POST' }, headers);
     }
+    // Replace your current loginWithCsrfProtection method in core/index.ts
     async loginWithCsrfProtection(identifier, password, incomingHeaders) {
-        // First get the CSRF token using the incoming headers to maintain session
+        // 1. Get the CSRF token
         const csrfResponse = await this.getCsrfToken(incomingHeaders);
         const csrfData = await csrfResponse.json();
         const csrfToken = csrfData.csrfToken || csrfData._csrf;
         if (!csrfToken) {
             throw new Error('Failed to obtain CSRF token');
         }
-        // Create headers with the CSRF token, preserving all original headers
+        // 2. Prepare headers for the login request
         const authHeaders = new Headers(incomingHeaders);
         authHeaders.set('x-csrf-token', csrfToken);
-        // Now perform the login with the same session context
+        // CRITICAL FIX: Extract the Set-Cookie array from the CSRF response
+        const csrfCookies = csrfResponse.headers.getSetCookie();
+        // Extract just the "name=value" pairs to build the 'Cookie' header for the backend
+        const existingCookieStr = incomingHeaders.get('cookie') || '';
+        const newCookiePairs = csrfCookies.map(c => c.split(';')[0]);
+        if (newCookiePairs.length > 0) {
+            const combinedCookies = [existingCookieStr, ...newCookiePairs].filter(Boolean).join('; ');
+            authHeaders.set('cookie', combinedCookies);
+        }
+        // 3. Perform login with the continuous session context
         return this.proxy('/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
