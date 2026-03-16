@@ -1,11 +1,10 @@
 "use strict";
-// /var/www/coreIAM/sdk/javascript/nextjs/actions.ts
 'use server';
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCsrfToken = getCsrfToken;
 exports.login = login;
 exports.register = register;
 exports.logout = logout;
+const headers_1 = require("next/headers");
 const core_1 = require("../core");
 let coreIAMInstance = null;
 function getCoreIAM() {
@@ -14,89 +13,41 @@ function getCoreIAM() {
     }
     return coreIAMInstance;
 }
-async function getCsrfToken() {
-    try {
-        const iam = getCoreIAM();
-        const mockHeaders = new Headers(); // Server actions don't have request headers
-        const response = await iam.getCsrfToken(mockHeaders);
-        const data = await response.json();
-        return {
-            success: true,
-            data,
-            status: response.status
-        };
-    }
-    catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to get CSRF token',
-            status: 500
-        };
-    }
+async function login(identifier, password) {
+    const iam = getCoreIAM();
+    const reqHeaders = (0, headers_1.headers)();
+    // Get CSRF token first
+    const csrfResponse = await iam.getCsrfToken(reqHeaders);
+    const { csrfToken } = await csrfResponse.json();
+    // Then perform login with the token
+    const loginResponse = await iam.login({ identifier, password }, reqHeaders);
+    return {
+        ok: loginResponse.ok,
+        status: loginResponse.status,
+        data: await loginResponse.json().catch(() => ({}))
+    };
 }
-async function login(identifier, password, csrfToken) {
-    try {
-        const iam = getCoreIAM();
-        const mockHeaders = new Headers();
-        if (csrfToken) {
-            mockHeaders.set('x-csrf-token', csrfToken);
-        }
-        const response = await iam.login({ identifier, password }, mockHeaders);
-        const data = await response.json().catch(() => ({}));
-        return {
-            success: true,
-            data,
-            status: response.status
-        };
-    }
-    catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Login failed',
-            status: 500
-        };
-    }
-}
-async function register(userData, csrfToken) {
-    try {
-        const iam = getCoreIAM();
-        const mockHeaders = new Headers();
-        if (csrfToken) {
-            mockHeaders.set('x-csrf-token', csrfToken);
-        }
-        const response = await iam.register(userData, mockHeaders);
-        const data = await response.json().catch(() => ({}));
-        return {
-            success: true,
-            data,
-            status: response.status
-        };
-    }
-    catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Registration failed',
-            status: 500
-        };
-    }
+async function register(userData) {
+    const iam = getCoreIAM();
+    const reqHeaders = (0, headers_1.headers)();
+    // Get CSRF token first
+    const csrfResponse = await iam.getCsrfToken(reqHeaders);
+    const { csrfToken } = await csrfResponse.json();
+    // Then perform registration with the token
+    const registerResponse = await iam.register(userData, reqHeaders);
+    return {
+        ok: registerResponse.ok,
+        status: registerResponse.status,
+        data: await registerResponse.json().catch(() => ({}))
+    };
 }
 async function logout() {
-    try {
-        const iam = getCoreIAM();
-        const mockHeaders = new Headers();
-        const response = await iam.logout(mockHeaders);
-        const data = await response.json().catch(() => ({}));
-        return {
-            success: true,
-            data,
-            status: response.status
-        };
-    }
-    catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Logout failed',
-            status: 500
-        };
-    }
+    const iam = getCoreIAM();
+    const reqHeaders = (0, headers_1.headers)();
+    const response = await iam.logout(reqHeaders);
+    return {
+        ok: response.ok,
+        status: response.status,
+        data: await response.json().catch(() => ({}))
+    };
 }
