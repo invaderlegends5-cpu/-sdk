@@ -56,30 +56,28 @@ export async function loginActionSdk(identifier: string, password: string): Prom
   }
 }
 
-export async function registerActionSdk(userData: any): Promise<AuthResult> {
+export async function registerActionSdk(userData: any) {
   const reqHeaders = await headers();
   const iam = new CoreIAM();
   
   try {
-    // 1. Get CSRF Token and handle cookie chaining
-    const csrfResponse = await iam.getCsrfToken(reqHeaders);
-    const { csrfToken } = await csrfResponse.json();
-    
+    // 1. Get CSRF Token using your existing SDK method
+    const csrfRes = await iam.getCsrfToken(reqHeaders);
+    const { csrfToken } = await csrfRes.json();
+
     const authHeaders = new Headers(reqHeaders);
     authHeaders.set('x-csrf-token', csrfToken);
     
-    // Chain the CSRF cookie to the next request
-    const csrfCookies = csrfResponse.headers.getSetCookie();
+    // Chain the CSRF cookie so the backend recognizes the session
+    const csrfCookies = csrfRes.headers.getSetCookie();
     if (csrfCookies.length > 0) {
-      const existing = reqHeaders.get('cookie') || '';
-      const combined = [existing, ...csrfCookies.map(c => c.split(';')[0])].filter(Boolean).join('; ');
-      authHeaders.set('cookie', combined);
+      authHeaders.set('cookie', csrfCookies.map(c => c.split(';')[0]).join('; '));
     }
 
-    // 2. Perform the actual registration
+    // 2. Call register based on your SDK's signature: (data, headers)
+    // We pass the userData directly as a flat object to match your API route
     const response = await iam.register(userData, authHeaders);
     
-    // 3. Sync the resulting JWT/Session cookies back to the browser
     await syncCookiesToNext(response);
     
     return {
@@ -87,8 +85,8 @@ export async function registerActionSdk(userData: any): Promise<AuthResult> {
       status: response.status,
       data: await response.json().catch(() => ({}))
     };
-  } catch (error) {
-    return { ok: false, status: 500, data: { error: 'Registration failed' } };
+  } catch (error: any) {
+    return { ok: false, status: 500, data: { message: error.message } };
   }
 }
 
