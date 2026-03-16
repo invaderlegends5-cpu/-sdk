@@ -1,6 +1,7 @@
 // /var/www/coreIAM/sdk/javascript/nextjs/actions.ts
 'use server';
 
+import { cookies, headers } from 'next/headers';
 import { CoreIAM } from '../core';
 
 export interface AuthResult {
@@ -9,79 +10,40 @@ export interface AuthResult {
   data: any;
 }
 
-export async function loginWithHeaders(identifier: string, password: string, requestHeaders: Headers): Promise<AuthResult> {
-  const iam = new CoreIAM();
+// INTERNAL HELPER: Syncs fetch Response cookies to Next.js cookie store
+async function syncCookiesToNext(response: Response) {
+  const cookieStore = await cookies();
+  const setCookies = response.headers.getSetCookie();
   
-  try {
-    // Get CSRF token first
-    const csrfResponse = await iam.getCsrfToken(requestHeaders);
-    const csrfData = await csrfResponse.json();
-    const csrfToken = csrfData.csrfToken || csrfData._csrf;
+  for (const cookieStr of setCookies) {
+    const parts = cookieStr.split(';');
+    const [nameValue, ...attributes] = parts;
+    const [name, ...valueParts] = nameValue.split('=');
     
-    if (!csrfToken) {
-      throw new Error('Failed to obtain CSRF token');
-    }
+    const cookieOptions: any = {};
+    attributes.forEach(attr => {
+      const [attrName, attrValue] = attr.trim().split('=');
+      const lowerName = attrName?.toLowerCase();
+      if (lowerName === 'httponly') cookieOptions.httpOnly = true;
+      if (lowerName === 'secure') cookieOptions.secure = true;
+      if (lowerName === 'path') cookieOptions.path = attrValue || '/';
+      if (lowerName === 'max-age') cookieOptions.maxAge = parseInt(attrValue, 10);
+    });
     
-    // Create headers object with CSRF token
-    const authHeaders = new Headers(requestHeaders);
-    authHeaders.set('x-csrf-token', csrfToken);
-    
-    // Perform login
-    const response = await iam.login({ identifier, password }, authHeaders);
-    
-    return {
-      ok: response.ok,
-      status: response.status,
-      data: await response.json().catch(() => ({}))
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 500,
-      data: { error: error instanceof Error ? error.message : 'An error occurred' }
-    };
+    cookieStore.set(name.trim(), valueParts.join('=').trim(), cookieOptions);
   }
 }
 
-export async function registerWithHeaders(userData: any, requestHeaders: Headers): Promise<AuthResult> {
+// EXPORTED ACTION: Clean interface for the tenant
+export async function loginActionSdk(identifier: string, password: string): Promise<AuthResult> {
+  const reqHeaders = await headers();
   const iam = new CoreIAM();
   
   try {
-    // Get CSRF token first
-    const csrfResponse = await iam.getCsrfToken(requestHeaders);
-    const csrfData = await csrfResponse.json();
-    const csrfToken = csrfData.csrfToken || csrfData._csrf;
+    const response = await iam.loginWithCsrfProtection(identifier, password, reqHeaders);
     
-    if (!csrfToken) {
-      throw new Error('Failed to obtain CSRF token');
-    }
-    
-    // Create headers object with CSRF token
-    const authHeaders = new Headers(requestHeaders);
-    authHeaders.set('x-csrf-token', csrfToken);
-    
-    // Perform registration
-    const response = await iam.register(userData, authHeaders);
-    
-    return {
-      ok: response.ok,
-      status: response.status,
-      data: await response.json().catch(() => ({}))
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 500,
-      data: { error: error instanceof Error ? error.message : 'An error occurred' }
-    };
-  }
-}
-
-export async function logoutWithHeaders(requestHeaders: Headers): Promise<AuthResult> {
-  const iam = new CoreIAM();
-  
-  try {
-    const response = await iam.logout(requestHeaders);
+    // Automatically sync cookies for the tenant
+    await syncCookiesToNext(response);
     
     return {
       ok: response.ok,
