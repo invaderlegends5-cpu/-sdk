@@ -182,4 +182,25 @@ static decodeKey(key: string): { baseUrl: string; tenantId: string } {
   async logout(headers: Headers) {
     return this.proxy('/auth/logout', { method: 'POST' }, headers);
   }
+async loginWithCsrfProtection(identifier: string, password: string, incomingHeaders: Headers) {
+  // First get the CSRF token using the incoming headers to maintain session
+  const csrfResponse = await this.getCsrfToken(incomingHeaders);
+  const csrfData = await csrfResponse.json();
+  const csrfToken = csrfData.csrfToken || csrfData._csrf;
+  
+  if (!csrfToken) {
+    throw new Error('Failed to obtain CSRF token');
+  }
+  
+  // Create headers with the CSRF token, preserving all original headers
+  const authHeaders = new Headers(incomingHeaders);
+  authHeaders.set('x-csrf-token', csrfToken);
+  
+  // Now perform the login with the same session context
+  return this.proxy('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier, password }),
+  }, authHeaders);
+}
 }

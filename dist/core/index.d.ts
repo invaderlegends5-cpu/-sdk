@@ -22,4 +22,5 @@ export declare class CoreIAM {
     login(body: any, headers: Headers): Promise<Response>;
     register(body: any, headers: Headers): Promise<Response>;
     logout(headers: Headers): Promise<Response>;
+    loginWithCsrfProtection(identifier: string, password: string, incomingHeaders: Headers): Promise<Response>;
 }
