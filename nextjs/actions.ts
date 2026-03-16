@@ -61,15 +61,14 @@ export async function registerActionSdk(userData: any): Promise<AuthResult> {
   const iam = new CoreIAM();
   
   try {
-    // Re-using the CSRF protection logic for registration as well
+    // 1. Get CSRF Token and handle cookie chaining
     const csrfResponse = await iam.getCsrfToken(reqHeaders);
-    const csrfData = await csrfResponse.json();
-    const csrfToken = csrfData.csrfToken || csrfData._csrf;
-
+    const { csrfToken } = await csrfResponse.json();
+    
     const authHeaders = new Headers(reqHeaders);
     authHeaders.set('x-csrf-token', csrfToken);
     
-    // Chain the CSRF cookie
+    // Chain the CSRF cookie to the next request
     const csrfCookies = csrfResponse.headers.getSetCookie();
     if (csrfCookies.length > 0) {
       const existing = reqHeaders.get('cookie') || '';
@@ -77,7 +76,10 @@ export async function registerActionSdk(userData: any): Promise<AuthResult> {
       authHeaders.set('cookie', combined);
     }
 
+    // 2. Perform the actual registration
     const response = await iam.register(userData, authHeaders);
+    
+    // 3. Sync the resulting JWT/Session cookies back to the browser
     await syncCookiesToNext(response);
     
     return {
@@ -86,7 +88,7 @@ export async function registerActionSdk(userData: any): Promise<AuthResult> {
       data: await response.json().catch(() => ({}))
     };
   } catch (error) {
-    return { ok: false, status: 500, data: { error: error instanceof Error ? error.message : 'Registration failed' } };
+    return { ok: false, status: 500, data: { error: 'Registration failed' } };
   }
 }
 
