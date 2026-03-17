@@ -217,4 +217,43 @@ async loginWithCsrfProtection(identifier: string, password: string, incomingHead
     body: JSON.stringify({ identifier, password }),
   }, authHeaders);
 }
+
+async registerWithCsrfProtection(userData: any, incomingHeaders: Headers) {
+  // 1. Get the CSRF token using the incoming headers to maintain session
+  const csrfResponse = await this.getCsrfToken(incomingHeaders);
+  const csrfData = await csrfResponse.json();
+  const csrfToken = csrfData.csrfToken || csrfData._csrf;
+  
+  if (!csrfToken) {
+    throw new Error('Failed to obtain CSRF token');
+  }
+  
+  // 2. Prepare headers for the register request, preserving all original headers
+  const authHeaders = new Headers(incomingHeaders);
+  authHeaders.set('x-csrf-token', csrfToken);
+  
+  // Extract cookies from the CSRF response to maintain session continuity
+  const setCookieHeader = csrfResponse.headers.get('set-cookie');
+  if (setCookieHeader) {
+    // Combine existing cookies with new ones from the CSRF response
+    const existingCookie = incomingHeaders.get('cookie') || '';
+    const updatedCookie = setCookieHeader.split(',').map(cookie => cookie.trim())
+      .map(cookie => cookie.split(';')[0])
+      .join('; ');
+    
+    const combinedCookies = [existingCookie, updatedCookie]
+      .filter(Boolean)
+      .join('; ');
+    
+    authHeaders.set('cookie', combinedCookies);
+  }
+  
+  // 3. Perform registration with the continuous session context
+  return this.proxy('/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData),
+  }, authHeaders);
+}
+
 }

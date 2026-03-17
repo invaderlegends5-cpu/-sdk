@@ -56,44 +56,61 @@ export async function loginActionSdk(identifier: string, password: string): Prom
   }
 }
 
-export async function registerActionSdk(userData: any) {
+// export async function registerActionSdk(userData: any) {
+//   const reqHeaders = await headers();
+//   const iam = new CoreIAM();
+  
+//   try {
+//     // 1. Get CSRF Token
+//     const csrfRes = await iam.getCsrfToken(reqHeaders);
+//     const csrfData = await csrfRes.json();
+//     const csrfToken = csrfData.csrfToken;
+
+//     // 2. Build Headers - MUST include Content-Type and Cookies for the CSRF session
+//     const authHeaders = new Headers();
+//     authHeaders.set('Content-Type', 'application/json');
+//     authHeaders.set('x-csrf-token', csrfToken);
+    
+//     const csrfCookies = csrfRes.headers.getSetCookie();
+//     if (csrfCookies.length > 0) {
+//       authHeaders.set('cookie', csrfCookies.map(c => c.split(';')[0]).join('; '));
+//     }
+
+//     // 3. Call Core Register - Pass the flat object the AuthService expects
+//     const response = await iam.register(userData, authHeaders);
+    
+//     // 4. Sync JWT/Session cookies back to Next.js
+//     const cookieStore = await cookies();
+//     response.headers.getSetCookie().forEach(cookieStr => {
+//       const [nameValue] = cookieStr.split(';');
+//       const [name, ...value] = nameValue.split('=');
+//       cookieStore.set(name.trim(), value.join('=').trim(), { path: '/' });
+//     });
+
+//     return {
+//       ok: response.ok,
+//       status: response.status,
+//       data: await response.json().catch(() => ({}))
+//     };
+//   } catch (error: any) {
+//     return { ok: false, status: 500, data: { message: error.message } };
+//   }
+// }
+
+export async function registerActionSdk(userData: any): Promise<AuthResult> {
   const reqHeaders = await headers();
   const iam = new CoreIAM();
-  
   try {
-    // 1. Get CSRF Token
-    const csrfRes = await iam.getCsrfToken(reqHeaders);
-    const csrfData = await csrfRes.json();
-    const csrfToken = csrfData.csrfToken;
-
-    // 2. Build Headers - MUST include Content-Type and Cookies for the CSRF session
-    const authHeaders = new Headers();
-    authHeaders.set('Content-Type', 'application/json');
-    authHeaders.set('x-csrf-token', csrfToken);
-    
-    const csrfCookies = csrfRes.headers.getSetCookie();
-    if (csrfCookies.length > 0) {
-      authHeaders.set('cookie', csrfCookies.map(c => c.split(';')[0]).join('; '));
-    }
-
-    // 3. Call Core Register - Pass the flat object the AuthService expects
-    const response = await iam.register(userData, authHeaders);
-    
-    // 4. Sync JWT/Session cookies back to Next.js
-    const cookieStore = await cookies();
-    response.headers.getSetCookie().forEach(cookieStr => {
-      const [nameValue] = cookieStr.split(';');
-      const [name, ...value] = nameValue.split('=');
-      cookieStore.set(name.trim(), value.join('=').trim(), { path: '/' });
-    });
-
+    // Use the same unified approach as login
+    const response = await iam.registerWithCsrfProtection(userData, reqHeaders);
+    await syncCookiesToNext(response);
     return {
       ok: response.ok,
       status: response.status,
-      data: await response.json().catch(() => ({}))
+       data: await response.json().catch(() => ({}))
     };
-  } catch (error: any) {
-    return { ok: false, status: 500, data: { message: error.message } };
+  } catch (error) {
+    return { ok: false, status: 500, data: { error: error instanceof Error ? error.message : 'Registration failed' } };
   }
 }
 
