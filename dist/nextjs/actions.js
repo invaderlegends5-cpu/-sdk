@@ -11,6 +11,30 @@ const core_1 = require("../core");
  * INTERNAL HELPER: Syncs fetch Response cookies to Next.js cookie store.
  * This handles both setting new JWTs and clearing cookies on logout.
  */
+//async function syncCookiesToNext(response: Response) {
+// const cookieStore = await cookies();
+// const setCookies = response.headers.getSetCookie();
+//  for (const cookieStr of setCookies) {
+//    const parts = cookieStr.split(';');
+//    const [nameValue, ...attributes] = parts;
+//    const [name, ...valueParts] = nameValue.split('=');
+//    const cookieOptions: any = {};
+//    attributes.forEach(attr => {
+//      const [attrName, attrValue] = attr.trim().split('=');
+//      const lowerName = attrName?.toLowerCase();
+//      if (lowerName === 'httponly') cookieOptions.httpOnly = true;
+//      if (lowerName === 'secure') cookieOptions.secure = true;
+//      if (lowerName === 'path') cookieOptions.path = attrValue || '/';
+//      if (lowerName === 'max-age') cookieOptions.maxAge = parseInt(attrValue, 10);
+//      if (lowerName === 'samesite') cookieOptions.sameSite = attrValue?.toLowerCase() || 'lax';
+//    });
+//    cookieStore.set(name.trim(), valueParts.join('=').trim(), cookieOptions);
+//  }
+//}
+/**
+ * INTERNAL HELPER: Syncs fetch Response cookies to Next.js cookie store.
+ * This handles both setting new JWTs and clearing cookies on logout.
+ */
 async function syncCookiesToNext(response) {
     const cookieStore = await (0, headers_1.cookies)();
     const setCookies = response.headers.getSetCookie();
@@ -19,6 +43,7 @@ async function syncCookiesToNext(response) {
         const [nameValue, ...attributes] = parts;
         const [name, ...valueParts] = nameValue.split('=');
         const cookieOptions = {};
+        let isDeleting = false;
         attributes.forEach(attr => {
             const [attrName, attrValue] = attr.trim().split('=');
             const lowerName = attrName?.toLowerCase();
@@ -28,12 +53,37 @@ async function syncCookiesToNext(response) {
                 cookieOptions.secure = true;
             if (lowerName === 'path')
                 cookieOptions.path = attrValue || '/';
-            if (lowerName === 'max-age')
-                cookieOptions.maxAge = parseInt(attrValue, 10);
+            if (lowerName === 'max-age') {
+                const maxAge = parseInt(attrValue, 10);
+                if (maxAge <= 0) {
+                    isDeleting = true; // Cookie is being deleted
+                }
+                else {
+                    cookieOptions.maxAge = maxAge;
+                }
+            }
+            if (lowerName === 'expires') {
+                const expiryDate = new Date(attrValue);
+                if (expiryDate.getTime() < Date.now()) {
+                    isDeleting = true; // Cookie has expired
+                }
+                else {
+                    cookieOptions.expires = expiryDate;
+                }
+            }
             if (lowerName === 'samesite')
                 cookieOptions.sameSite = attrValue?.toLowerCase() || 'lax';
         });
-        cookieStore.set(name.trim(), valueParts.join('=').trim(), cookieOptions);
+        const cookieName = name.trim();
+        const cookieValue = valueParts.join('=').trim();
+        if (isDeleting || cookieValue === '') {
+            // Properly delete the cookie instead of just setting an empty value
+            cookieStore.delete(cookieName);
+        }
+        else {
+            // Set the cookie with the new value
+            cookieStore.set(cookieName, cookieValue, cookieOptions);
+        }
     }
 }
 async function loginActionSdk(identifier, password) {
