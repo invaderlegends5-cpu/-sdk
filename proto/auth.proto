@@ -1,0 +1,254 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/yourorg/sdk/go/proto/auth";
+
+import "common.proto";
+
+service AuthService {
+  // Token validation - called by Gateway
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  
+  // Get user by ID - internal use
+  rpc GetUserById(GetUserByIdRequest) returns (UserResponse);
+  
+  // Get user by phone/email - internal use
+  rpc GetUserByIdentifier(GetUserByIdentifierRequest) returns (UserResponse);
+  
+  // Revoke all tokens for user - called by Session service
+  rpc RevokeUserTokens(RevokeUserTokensRequest) returns (RevokeUserTokensResponse);
+
+  // --- User Management ---
+  rpc CreateUser(CreateUserRequest) returns (UserResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (common.DeleteResponse);
+  rpc ListUsersByIds(ListUsersByIdsRequest) returns (ListUsersResponse);
+  rpc UpdateUserStatus(UpdateUserStatusRequest) returns (UserResponse);
+  rpc FindUserByEmail(FindUserByEmailRequest) returns (UserResponse);
+
+  // --- OTP ---
+  rpc RequestOtp(RequestOtpRequest) returns (RequestOtpResponse);
+  rpc VerifyOtp(VerifyOtpRequest) returns (VerifyOtpResponse);
+
+  // --- OAuth Providers ---
+  rpc GetTenantOAuthProviders(GetTenantOAuthProvidersRequest) returns (GetTenantOAuthProvidersResponse);
+  rpc CreateTenantOAuthProvider(CreateTenantOAuthProviderRequest) returns (OAuthProviderResponse);
+  rpc UpdateTenantOAuthProvider(UpdateTenantOAuthProviderRequest) returns (OAuthProviderResponse);
+  rpc DeleteTenantOAuthProvider(DeleteTenantOAuthProviderRequest) returns (common.DeleteResponse);
+
+  // --- SAML Provider ---
+  rpc GetTenantSamlProvider(GetTenantSamlProviderRequest) returns (SamlProviderResponse);
+  rpc UpsertTenantSamlProvider(UpsertTenantSamlProviderRequest) returns (SamlProviderResponse);
+  rpc DeleteTenantSamlProvider(DeleteTenantSamlProviderRequest) returns (common.DeleteResponse);
+}
+
+// Token Validation
+message ValidateTokenRequest {
+  common.RequestContext context = 1;
+  string token = 2;
+  string token_type = 3; // "access" or "refresh"
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  repeated string roles = 4;
+  int64 expires_at = 5;
+  string session_id = 6;
+  string family_id = 7;
+  common.ErrorResponse error = 8;
+}
+
+// User Lookup
+message GetUserByIdRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+}
+
+message GetUserByIdentifierRequest {
+  common.RequestContext context = 1;
+  string identifier = 2; // phone or email
+  string identifier_type = 3; // "phone" or "email"
+}
+
+message UserResponse {
+  string id = 1;
+  string phone = 2;
+  string email = 3;
+  bool phone_verified = 4;
+  bool email_verified = 5;
+  bool mfa_enabled = 6;
+  int64 created_at = 7;
+  int64 last_login_at = 8;
+  string first_name = 10;
+  string last_name = 11;
+  bool is_active = 12;
+  common.ErrorResponse error = 9;
+}
+
+// Token Revocation
+message RevokeUserTokensRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+  string reason = 3;
+}
+
+message RevokeUserTokensResponse {
+  bool success = 1;
+  int32 tokens_revoked = 2;
+  common.ErrorResponse error = 3;
+}
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+message CreateUserRequest {
+  common.RequestContext context = 1;
+  string email = 2;
+  string first_name = 3;
+  string last_name = 4;
+  optional string phone = 5;
+}
+
+message DeleteUserRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+}
+
+message ListUsersByIdsRequest {
+  common.RequestContext context = 1;
+  repeated string user_ids = 2;
+  string tenant_id = 3;
+}
+
+message ListUsersResponse {
+  repeated UserResponse users = 1;
+  int32 total = 2;
+  common.ErrorResponse error = 3;
+}
+
+message UpdateUserStatusRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+  bool is_active = 3;
+}
+
+message FindUserByEmailRequest {
+  common.RequestContext context = 1;
+  string email = 2;
+}
+
+// ============================================
+// OTP
+// ============================================
+
+message RequestOtpRequest {
+  common.RequestContext context = 1;
+  string email = 2;
+  string tenant_id = 3;
+  string channel = 4;
+}
+
+message RequestOtpResponse {
+  bool sent = 1;
+  string message = 2;
+  common.ErrorResponse error = 3;
+}
+
+message VerifyOtpRequest {
+  common.RequestContext context = 1;
+  string email = 2;
+  string code = 3;
+  string tenant_id = 4;
+}
+
+message VerifyOtpResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  bool is_new_tenant = 3;
+  common.ErrorResponse error = 4;
+}
+
+// ============================================
+// OAUTH PROVIDERS
+// ============================================
+
+message GetTenantOAuthProvidersRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}
+
+message OAuthProviderResponse {
+  string id = 1;
+  string provider = 2;
+  string client_id = 3;
+  bool enabled = 4;
+  common.ErrorResponse error = 5;
+}
+
+message GetTenantOAuthProvidersResponse {
+  repeated OAuthProviderResponse providers = 1;
+  common.ErrorResponse error = 2;
+}
+
+message CreateTenantOAuthProviderRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string provider = 3;
+  string client_id = 4;
+  string client_secret = 5;
+  string auth_url = 6;
+  string token_url = 7;
+  string user_info_url = 8;
+}
+
+message UpdateTenantOAuthProviderRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string provider = 3;
+  optional string client_id = 4;
+  optional string client_secret = 5;
+  optional bool enabled = 6;
+}
+
+message DeleteTenantOAuthProviderRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string provider = 3;
+}
+
+// ============================================
+// SAML PROVIDER
+// ============================================
+
+message GetTenantSamlProviderRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}
+
+message SamlProviderResponse {
+  string id = 1;
+  string tenant_id = 2;
+  string sp_entity_id = 3;
+  string sp_acs_url = 4;
+  bool enabled = 5;
+  common.ErrorResponse error = 6;
+}
+
+message UpsertTenantSamlProviderRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string idp_metadata = 3;
+  string sp_entity_id = 4;
+  string sp_acs_url = 5;
+  optional string sp_logout_url = 6;
+  string name_id_format = 7;
+  string binding = 8;
+}
+
+message DeleteTenantSamlProviderRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}

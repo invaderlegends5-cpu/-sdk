@@ -1,0 +1,266 @@
+syntax = "proto3";
+
+package authorization;
+
+option go_package = "github.com/yourorg/sdk/go/proto/authorization";
+
+import "common.proto";
+
+service AuthorizationService {
+  // Primary permission check - most called RPC
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+  
+  // Batch permission check
+  rpc CheckPermissions(CheckPermissionsRequest) returns (CheckPermissionsResponse);
+  
+  // Get user roles
+  rpc GetUserRoles(GetUserRolesRequest) returns (GetUserRolesResponse);
+  
+  // Get role permissions
+  rpc GetRolePermissions(GetRolePermissionsRequest) returns (GetRolePermissionsResponse);
+  
+  // Evaluate policy
+  rpc EvaluatePolicy(EvaluatePolicyRequest) returns (EvaluatePolicyResponse);
+
+  // --- Tenant Auth Settings ---
+  rpc CreateTenantAuthSetting(CreateTenantAuthSettingRequest) returns (TenantAuthSettingResponse);
+  rpc GetTenantAuthSetting(GetTenantAuthSettingRequest) returns (TenantAuthSettingResponse);
+  rpc UpdateTenantAuthSetting(UpdateTenantAuthSettingRequest) returns (TenantAuthSettingResponse);
+  rpc DeleteTenantAuthSetting(DeleteTenantAuthSettingRequest) returns (common.DeleteResponse);
+
+  // --- Role Management ---
+  rpc CreateRole(CreateRoleRequest) returns (RoleResponse);
+  rpc UpdateRole(UpdateRoleRequest) returns (RoleResponse);
+  rpc DeleteRole(DeleteRoleRequest) returns (common.DeleteResponse);
+
+  // --- Role Assignment ---
+  rpc AssignRoleToUser(AssignRoleRequest) returns (AssignRoleResponse);
+  rpc RevokeRoleFromUser(RevokeRoleRequest) returns (RevokeRoleResponse);
+
+  // --- User Permissions ---
+  rpc GetUserPermissions(GetUserPermissionsRequest) returns (GetUserPermissionsResponse);
+}
+
+// Permission Check
+message CheckPermissionRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  string resource = 4;      // e.g., "user", "tenant", "api"
+  string action = 5;        // e.g., "read", "write", "delete", "execute"
+  map<string, string> attributes = 6; // For ABAC conditions
+}
+
+message CheckPermissionResponse {
+  bool allowed = 1;
+  string reason = 2;         // Why allowed/denied
+  string matched_policy = 3; // Which policy matched
+  common.ErrorResponse error = 4;
+}
+
+// Batch Permission Check
+message CheckPermissionsRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  repeated PermissionCheck checks = 4;
+}
+
+message PermissionCheck {
+  string resource = 1;
+  string action = 2;
+  map<string, string> attributes = 3;
+}
+
+message CheckPermissionsResponse {
+  repeated PermissionResult results = 1;
+  common.ErrorResponse error = 2;
+}
+
+message PermissionResult {
+  string resource = 1;
+  string action = 2;
+  bool allowed = 3;
+  string reason = 4;
+}
+
+// User Roles
+message GetUserRolesRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+}
+
+message GetUserRolesResponse {
+  repeated Role roles = 1;
+  common.ErrorResponse error = 2;
+}
+
+message Role {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool is_system = 4;
+  repeated string privileges = 5;
+  int64 valid_from = 6;
+  int64 valid_until = 7;
+}
+
+// Role Permissions
+message GetRolePermissionsRequest {
+  common.RequestContext context = 1;
+  string role_id = 2;
+  bool include_inherited = 3;
+}
+
+message GetRolePermissionsResponse {
+  repeated Permission permissions = 1;
+  common.ErrorResponse error = 2;
+}
+
+message Permission {
+  string id = 1;
+  string name = 2;
+  string resource = 3;
+  string action = 4;
+  bool inherited = 5;
+}
+
+// Policy Evaluation
+message EvaluatePolicyRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  string policy_id = 4;
+  map<string, string> input = 5;
+}
+
+message EvaluatePolicyResponse {
+  string effect = 1; // "ALLOW", "DENY", "CONDITIONAL"
+  map<string, string> conditions = 2;
+  common.ErrorResponse error = 3;
+}
+
+// ============================================
+// TENANT AUTH SETTINGS
+// ============================================
+
+message CreateTenantAuthSettingRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  bool enforce_mfa = 3;
+  int32 session_timeout_minutes = 4;
+  int32 max_concurrent_sessions = 5;
+  string permission_conflict_strategy = 6;
+}
+
+message TenantAuthSettingResponse {
+  string id = 1;
+  string tenant_id = 2;
+  bool enforce_mfa = 3;
+  int32 session_timeout_minutes = 4;
+  int32 max_concurrent_sessions = 5;
+  string permission_conflict_strategy = 6;
+  string default_role_id = 7;
+  common.ErrorResponse error = 8;
+}
+
+message GetTenantAuthSettingRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}
+
+message UpdateTenantAuthSettingRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  optional bool enforce_mfa = 3;
+  optional int32 session_timeout_minutes = 4;
+  optional int32 max_concurrent_sessions = 5;
+  optional string permission_conflict_strategy = 6;
+  optional string default_role_id = 7;
+}
+
+message DeleteTenantAuthSettingRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}
+
+// ============================================
+// ROLE MANAGEMENT
+// ============================================
+
+message CreateRoleRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  repeated string privileges = 5;
+}
+
+message RoleResponse {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  bool is_system = 5;
+  repeated string privileges = 6;
+  common.ErrorResponse error = 7;
+}
+
+message UpdateRoleRequest {
+  common.RequestContext context = 1;
+  string id = 2;
+  string tenant_id = 3;
+  optional string name = 4;
+  optional string description = 5;
+  repeated string privileges = 6;
+}
+
+message DeleteRoleRequest {
+  common.RequestContext context = 1;
+  string id = 2;
+  string tenant_id = 3;
+}
+
+// ============================================
+// ROLE ASSIGNMENT
+// ============================================
+
+message AssignRoleRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+  string role_id = 3;
+  string tenant_id = 4;
+}
+
+message AssignRoleResponse {
+  bool success = 1;
+  common.ErrorResponse error = 2;
+}
+
+message RevokeRoleRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+  string role_id = 3;
+  string tenant_id = 4;
+}
+
+message RevokeRoleResponse {
+  bool success = 1;
+  common.ErrorResponse error = 2;
+}
+
+// ============================================
+// USER PERMISSIONS
+// ============================================
+
+message GetUserPermissionsRequest {
+  common.RequestContext context = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+}
+
+message GetUserPermissionsResponse {
+  repeated Permission permissions = 1;
+  common.ErrorResponse error = 2;
+}

@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package security;
+
+option go_package = "github.com/yourorg/sdk/go/proto/security";
+
+import "common.proto";
+
+service SecurityService {
+  // NEW: Unified Access Validation
+  // This combines IP, Bot, Device, and Behavioral analysis in one fast call
+  rpc ValidateAccess(ValidateAccessRequest) returns (ValidateAccessResponse);
+  // IP reputation check - called by Gateway
+  rpc CheckIP(CheckIPRequest) returns (CheckIPResponse);
+  
+  // Bot detection
+  rpc DetectBot(DetectBotRequest) returns (DetectBotResponse);
+  
+  // Device fingerprint validation
+  rpc ValidateDevice(ValidateDeviceRequest) returns (ValidateDeviceResponse);
+  
+  // Report security incident
+  rpc ReportIncident(ReportIncidentRequest) returns (ReportIncidentResponse);
+  
+  // Get IP reputation details
+  rpc GetIPReputation(GetIPReputationRequest) returns (GetIPReputationResponse);
+}
+
+// IP Check
+message CheckIPRequest {
+  common.RequestContext context = 1;
+  string ip_address = 2;
+}
+
+message ValidateAccessRequest {
+  common.RequestContext context = 1;
+  int32 required_threshold = 2; // The threshold from the Decorator
+  string ip_address = 3;
+  string user_agent = 4;
+  string fingerprint_hash = 5;
+  string user_id = 6;
+}
+
+message ValidateAccessResponse {
+  bool allowed = 1;
+  int32 risk_score = 2;
+  string reason = 3;
+  string action_required = 4; // e.g., "MFA", "BLOCK", "CHALLENGE"
+  common.ErrorResponse error = 5;
+}
+
+message CheckIPResponse {
+  bool allowed = 1;
+  int32 reputation_score = 2; // 0-100
+  string status = 3;          // "active", "blocked", "trusted"
+  bool is_manually_blocked = 4;
+  string blocked_reason = 5;
+  int64 expires_at = 6;
+  common.ErrorResponse error = 7;
+}
+
+// Bot Detection
+message DetectBotRequest {
+  common.RequestContext context = 1;
+  string ip_address = 2;
+  string user_agent = 3;
+  string fingerprint_hash = 4;
+  map<string, string> headers = 5;
+}
+
+message DetectBotResponse {
+  bool is_bot = 1;
+  int32 confidence = 2;     // 0-100
+  string bot_type = 3;      // "crawler", "scraper", "automation", etc.
+  string reason = 4;
+  common.ErrorResponse error = 5;
+}
+
+// Device Validation
+message ValidateDeviceRequest {
+  common.RequestContext context = 1;
+  string fingerprint_hash = 2;
+  string user_agent = 3;
+  string ip_address = 4;
+  string user_id = 5;
+}
+
+message ValidateDeviceResponse {
+  bool trusted = 1;
+  int32 risk_score = 2;     // 0-100
+  bool is_new_device = 3;
+  bool is_suspicious = 4;
+  string device_id = 5;
+  common.ErrorResponse error = 6;
+}
+
+// Incident Reporting
+message ReportIncidentRequest {
+  common.RequestContext context = 1;
+  string event_type = 2;    // "LOGIN_FAIL", "GEO_ANOMALY", etc.
+  string severity = 3;      // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  string user_id = 4;
+  string tenant_id = 5;
+  map<string, string> details = 6;
+}
+
+message ReportIncidentResponse {
+  string incident_id = 1;
+  bool success = 2;
+  common.ErrorResponse error = 3;
+}
+
+// IP Reputation Details
+message GetIPReputationRequest {
+  common.RequestContext context = 1;
+  string ip_address = 2;
+  bool include_history = 3;
+}
+
+message GetIPReputationResponse {
+  string ip = 1;
+  int32 score = 2;
+  string status = 3;
+  int64 first_seen = 4;
+  int64 last_activity = 5;
+  repeated ReputationHistoryEntry history = 6;
+  common.ErrorResponse error = 7;
+}
+
+message ReputationHistoryEntry {
+  int32 old_score = 1;
+  int32 new_score = 2;
+  string reason = 3;
+  int64 timestamp = 4;
+}

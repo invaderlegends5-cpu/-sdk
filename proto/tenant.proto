@@ -1,0 +1,556 @@
+syntax = "proto3";
+
+package tenant;
+
+import "common.proto";
+
+// ============================================
+// COMMON TYPES
+// ============================================
+
+service TenantService {
+  rpc ValidateApiKey(ValidateApiKeyRequest) returns (ValidateApiKeyResponse) {}
+  rpc GetTenantPolicy(GetPolicyRequest) returns (TenantPolicyResponse) {}
+  rpc GetTenant(GetTenantRequest) returns (TenantResponse) {}
+  rpc GetTenantHierarchy(GetTenantHierarchyRequest) returns (GetTenantHierarchyResponse) {}
+  rpc CheckMembership(CheckMembershipRequest) returns (CheckMembershipResponse) {}
+  rpc GetUserTenants(GetUserTenantsRequest) returns (GetUserTenantsResponse) {}
+
+  // --- Tenant CRUD ---
+  rpc CreateTenant(CreateTenantRequest) returns (CreateTenantResponse) {}
+  rpc DeleteTenant(DeleteTenantRequest) returns (common.DeleteResponse) {}
+
+  // --- Slug ---
+  rpc CheckSlugAvailable(CheckSlugAvailableRequest) returns (CheckSlugAvailableResponse) {}
+
+  // --- Onboarding ---
+  rpc CompleteOnboarding(CompleteOnboardingRequest) returns (common.DeleteResponse) {}
+
+  // --- Membership ---
+  rpc AddMember(AddMemberRequest) returns (common.DeleteResponse) {}
+  rpc RemoveMember(RemoveMemberRequest) returns (common.DeleteResponse) {}
+  rpc GetTenantMemberUserIds(GetTenantMemberUserIdsRequest) returns (GetTenantMemberUserIdsResponse) {}
+
+  // --- Webhook ---
+  rpc UpdateTenantWebhook(UpdateTenantWebhookRequest) returns (UpdateTenantWebhookResponse) {}
+
+  // --- API Key ---
+  rpc RotateApiKey(RotateApiKeyRequest) returns (RotateApiKeyResponse) {}
+
+  // --- Rate Limit Profiles ---
+  rpc CreateTenantRateLimitProfile(CreateTenantRateLimitProfileRequest) returns (RateLimitProfileResponse) {}
+  rpc GetTenantRateLimitProfiles(GetTenantRateLimitProfilesRequest) returns (GetTenantRateLimitProfilesResponse) {}
+  rpc UpdateTenantRateLimitProfile(UpdateTenantRateLimitProfileRequest) returns (RateLimitProfileResponse) {}
+  rpc DeleteTenantRateLimitProfile(DeleteTenantRateLimitProfileRequest) returns (common.DeleteResponse) {}
+}
+
+message ValidateApiKeyRequest {
+  string api_key = 1;
+  string salt = 2; // Added since your service now requires this
+}
+
+message ValidateApiKeyResponse {
+  bool valid = 1;
+  string tenant_id = 2;
+  string tenant_name = 3;
+  ApiError error = 4;
+}
+
+message ApiError {
+  string code = 1;
+  string message = 2;
+}
+
+message GetPolicyRequest {
+  string tenant_id = 1;
+}
+
+message TenantPolicyResponse {
+  string tenant_id = 1;
+  bool require_mfa = 2;
+  string otp_provider_type = 3;
+  string permission_conflict_strategy = 4;
+  bool is_active = 5;
+}
+
+message GetTenantRequest {
+  string tenant_id = 1;
+  string slug = 2;
+}
+
+message TenantResponse {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  string status = 4;
+  bool is_active = 5;
+  string parent_tenant_id = 6;
+  int32 hierarchy_level = 7;
+  string hierarchy_path = 8;
+  map<string, string> settings = 9;
+  map<string, string> limits = 10;
+  ApiError error = 11;
+  string api_key_identifier = 12;
+ }
+
+message GetTenantHierarchyRequest {
+  string tenant_id = 1;
+  bool include_children = 2;
+  bool include_parents = 3;
+}
+
+message HierarchyNode {
+  string id = 1;
+  string name = 2;
+  int32 level = 3;
+  string parent_id = 4;
+}
+
+message GetTenantHierarchyResponse {
+  HierarchyNode root = 1;
+  repeated HierarchyNode ancestors = 2;
+  repeated HierarchyNode descendants = 3;
+  ApiError error = 4;
+}
+
+message CheckMembershipRequest {
+  string tenant_id = 1;
+  string user_id = 2;
+}
+
+message CheckMembershipResponse {
+  bool is_member = 1;
+  string role_name = 2;
+  bool is_active = 3;
+  int64 joined_at = 4; // Unix timestamp
+  ApiError error = 5;
+}
+
+message GetUserTenantsRequest {
+  string user_id = 1;
+}
+
+message TenantInfo {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  string status = 4;
+  bool is_active = 5;
+  string auth_method = 6;
+}
+
+message GetUserTenantsResponse {
+  repeated TenantInfo tenants = 1;
+  ApiError error = 2;
+}
+
+message EventMetadata {
+  string trace_id = 1;
+  string correlation_id = 2;
+  string timestamp = 3; // ISO 8601
+  string source = 4;    // Service name
+  string version = 5;   // Event schema version
+}
+
+message BaseEvent {
+  string event_id = 1;
+  string event_type = 2;
+  EventMetadata metadata = 3;
+  bytes payload = 4; // Serialized payload
+}
+
+// ============================================
+// TENANT CRUD
+// ============================================
+
+message CreateTenantRequest {
+  common.RequestContext context = 1;
+  string created_by_id = 2;
+  string name = 3;
+  string slug = 4;
+  optional string description = 5;
+  optional bool is_active = 6;
+  map<string, string> config = 7;
+  map<string, string> metadata = 8;
+  optional string parent_tenant_id = 9;
+}
+
+message CreateTenantResponse {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  string status = 4;
+  string api_key_identifier = 5;
+  common.ErrorResponse error = 6;
+}
+
+message DeleteTenantRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}
+
+// ============================================
+// SLUG
+// ============================================
+
+message CheckSlugAvailableRequest {
+  common.RequestContext context = 1;
+  string slug = 2;
+}
+
+message CheckSlugAvailableResponse {
+  bool available = 1;
+  string suggestion = 2;
+  common.ErrorResponse error = 3;
+}
+
+// ============================================
+// ONBOARDING
+// ============================================
+
+message CompleteOnboardingRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}
+
+// ============================================
+// MEMBERSHIP
+// ============================================
+
+message AddMemberRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string user_id = 3;
+  string role_name = 4;
+}
+
+message RemoveMemberRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string user_id = 3;
+}
+
+message GetTenantMemberUserIdsRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}
+
+message GetTenantMemberUserIdsResponse {
+  repeated string user_ids = 1;
+  common.ErrorResponse error = 2;
+}
+
+// ============================================
+// WEBHOOK
+// ============================================
+
+message UpdateTenantWebhookRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string webhook_url = 3;
+  string webhook_secret = 4;
+  bool webhook_active = 5;
+}
+
+message UpdateTenantWebhookResponse {
+  bool webhook_active = 1;
+  common.ErrorResponse error = 2;
+}
+
+// ============================================
+// API KEY
+// ============================================
+
+message RotateApiKeyRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}
+
+message RotateApiKeyResponse {
+  string api_key_identifier = 1;
+  string raw_api_key = 2;
+  common.ErrorResponse error = 3;
+}
+
+// ============================================
+// RATE LIMIT PROFILES
+// ============================================
+
+message CreateTenantRateLimitProfileRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  int32 window_ms = 5;
+  int32 max = 6;
+  bool is_default = 7;
+}
+
+message RateLimitProfileResponse {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  int32 window_ms = 5;
+  int32 max = 6;
+  bool is_default = 7;
+  bool is_active = 8;
+  common.ErrorResponse error = 9;
+}
+
+message GetTenantRateLimitProfilesRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}
+
+message GetTenantRateLimitProfilesResponse {
+  repeated RateLimitProfileResponse profiles = 1;
+  common.ErrorResponse error = 2;
+}
+
+message UpdateTenantRateLimitProfileRequest {
+  common.RequestContext context = 1;
+  string id = 2;
+  string tenant_id = 3;
+  optional string name = 4;
+  optional int32 window_ms = 5;
+  optional int32 max = 6;
+  optional bool is_default = 7;
+  optional bool is_active = 8;
+}
+
+message DeleteTenantRateLimitProfileRequest {
+  common.RequestContext context = 1;
+  string id = 2;
+  string tenant_id = 3;
+}
+
+// ============================================
+// USER EVENTS PAYLOADS
+// ============================================
+
+message UserCreatedPayload {
+  string user_id = 1;
+  string tenant_id = 2;
+  string email = 3;
+  string phone = 4;
+  string created_at = 5;
+}
+
+message UserUpdatedPayload {
+  string user_id = 1;
+  string tenant_id = 2;
+  repeated FieldChange changes = 3;
+  string updated_at = 4;
+}
+
+message FieldChange {
+  string field = 1;
+  string old_value = 2;
+  string new_value = 3;
+}
+
+message UserDeletedPayload {
+  string user_id = 1;
+  string tenant_id = 2;
+  string deleted_by = 3;
+  string reason = 4;
+  string deleted_at = 5;
+}
+
+// ============================================
+// AUTH EVENTS PAYLOADS
+// ============================================
+
+message LoginSuccessPayload {
+  string user_id = 1;
+  string tenant_id = 2;
+  string session_id = 3;
+  string ip = 4;
+  string user_agent = 5;
+  string device_id = 6;
+  AuthMethod method = 7;
+  string provider = 8; // For OAuth
+}
+
+enum AuthMethod {
+  PASSWORD = 0;
+  OTP = 1;
+  OAUTH = 2;
+  SAML = 3;
+  PASSWORDLESS = 4;
+}
+
+message LoginFailedPayload {
+  string identifier = 1; // phone or email
+  string tenant_id = 2;
+  string ip = 3;
+  string user_agent = 4;
+  string reason = 5;
+  int32 attempt_count = 6;
+}
+
+message LogoutPayload {
+  string user_id = 1;
+  string tenant_id = 2;
+  string session_id = 3;
+  LogoutReason reason = 4;
+}
+
+enum LogoutReason {
+  USER_INITIATED = 0;
+  SESSION_EXPIRED = 1;
+  FORCED = 2;
+  SECURITY = 3;
+}
+
+message TokenRefreshedPayload {
+  string user_id = 1;
+  string tenant_id = 2;
+  string session_id = 3;
+  string family_id = 4;
+  string old_token_hash = 5;
+  string new_token_hash = 6;
+}
+
+// ============================================
+// TENANT EVENTS PAYLOADS
+// ============================================
+
+message TenantCreatedPayload {
+  string tenant_id = 1;
+  string name = 2;
+  string slug = 3;
+  string created_by_id = 4;
+  string parent_tenant_id = 5;
+  int32 hierarchy_level = 6;
+}
+
+message MembershipChangedPayload {
+  string tenant_id = 1;
+  string user_id = 2;
+  MembershipAction action = 3;
+  string role_name = 4;
+  string changed_by = 5;
+}
+
+enum MembershipAction {
+  ADDED = 0;
+  REMOVED = 1;
+  UPDATED = 2;
+}
+
+// ============================================
+// SESSION EVENTS PAYLOADS
+// ============================================
+
+message SessionCreatedPayload {
+  string session_id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  string ip = 4;
+  string user_agent = 5;
+  string expires_at = 6;
+}
+
+message SessionRevokedPayload {
+  string session_id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  string reason = 4;
+  string revoked_by = 5;
+}
+
+// ============================================
+// SECURITY EVENTS PAYLOADS
+// ============================================
+
+message ThreatDetectedPayload {
+  string type = 1;
+  SeverityLevel severity = 2;
+  string ip = 3;
+  string user_id = 4;
+  string tenant_id = 5;
+  map<string, string> details = 6; // Simplified - original was Record<string, unknown>
+}
+
+enum SeverityLevel {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
+  CRITICAL = 3;
+}
+
+message IPBlockedPayload {
+  string ip = 1;
+  string reason = 2;
+  int64 duration = 3; // seconds, 0 for permanent
+  string blocked_by = 4;
+}
+
+// ============================================
+// AUTHORIZATION EVENTS PAYLOADS
+// ============================================
+
+message PermissionGrantedPayload {
+  string user_id = 1;
+  string tenant_id = 2;
+  string permission_id = 3;
+  string permission_name = 4;
+  string granted_by = 5;
+  string reason = 6;
+}
+
+message UserRoleAssignedPayload {
+  string user_id = 1;
+  string tenant_id = 2;
+  string role_id = 3;
+  string role_name = 4;
+  string assigned_by = 5;
+  string valid_from = 6;
+  string valid_until = 7;
+}
+
+// ============================================
+// PROVIDER EVENTS PAYLOADS
+// ============================================
+
+message MessageSentPayload {
+  string message_id = 1;
+  string provider_id = 2;
+  ChannelType channel = 3;
+  string destination = 4;
+  string tenant_id = 5;
+  MessageStatus status = 6;
+}
+
+enum ChannelType {
+  SMS = 0;
+  EMAIL = 1;
+  VOICE = 2;
+  PUSH = 3;
+  WHATSAPP = 4;
+}
+
+enum MessageStatus {
+  SENT = 0;
+  PENDING = 1;
+}
+
+message ProviderHealthChangedPayload {
+  string provider_id = 1;
+  string provider_name = 2;
+  HealthStatus previous_status = 3;
+  HealthStatus current_status = 4;
+  string reason = 5;
+}
+
+enum HealthStatus {
+  HEALTHY = 0;
+  DEGRADED = 1;
+  UNHEALTHY = 2;
+}
+
+// ============================================
+// TOPIC CONSTANTS - Would need to be defined separately in your application
+// ============================================

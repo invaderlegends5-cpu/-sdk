@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package ratelimit;
+
+option go_package = "github.com/yourorg/sdk/go/proto/ratelimit";
+
+import "common.proto";
+
+service RateLimitService {
+  // Check rate limit - high-speed call from Gateway
+  rpc CheckLimit(CheckLimitRequest) returns (CheckLimitResponse);
+  
+  // Increment counter
+  rpc IncrementCounter(IncrementCounterRequest) returns (IncrementCounterResponse);
+  
+  // Get tenant rate limit profile
+  rpc GetProfile(GetProfileRequest) returns (ProfileResponse);
+  
+  // Get current usage
+  rpc GetUsage(GetUsageRequest) returns (GetUsageResponse);
+}
+
+// Check Limit
+message CheckLimitRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string key = 3;           // e.g., "user:123:api", "tenant:456:otp"
+  string resource = 4;      // e.g., "api", "otp", "login"
+  string action = 5;        // e.g., "request", "send", "attempt"
+}
+
+message CheckLimitResponse {
+  bool allowed = 1;
+  int32 remaining = 2;      // Requests remaining
+  int32 limit = 3;          // Total limit
+  int64 reset_at = 4;       // When counter resets (unix timestamp)
+  int32 retry_after = 5;    // Seconds until retry allowed (if blocked)
+  common.ErrorResponse error = 6;
+}
+
+// Increment Counter
+message IncrementCounterRequest {
+  common.RequestContext context = 1;
+  string key = 2;
+  int32 increment = 3;      // Default 1
+  int32 window_ms = 4;      // Window in milliseconds
+  int32 max = 5;            // Maximum allowed in window
+}
+
+message IncrementCounterResponse {
+  int32 current_count = 1;
+  int32 remaining = 2;
+  bool limit_exceeded = 3;
+  int64 window_start = 4;
+  int64 expires_at = 5;
+  common.ErrorResponse error = 6;
+}
+
+// Get Profile
+message GetProfileRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+}
+
+message ProfileResponse {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int32 window_ms = 4;
+  int32 max = 5;
+  bool is_active = 6;
+  bool is_default = 7;
+  repeated RateLimitRule rules = 8;
+  common.ErrorResponse error = 9;
+}
+
+message RateLimitRule {
+  string id = 1;
+  string resource = 2;
+  string action = 3;
+  int32 priority = 4;
+  bool active = 5;
+}
+
+// Get Usage
+message GetUsageRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string key = 3;
+}
+
+message GetUsageResponse {
+  string key = 1;
+  int32 current_count = 2;
+  int32 limit = 3;
+  int64 window_start = 4;
+  int64 expires_at = 5;
+  common.ErrorResponse error = 6;
+}

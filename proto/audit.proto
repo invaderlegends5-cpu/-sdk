@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package audit;
+
+import "google/protobuf/struct.proto";
+
+service AuditService {
+  // Persistence
+  rpc LogEvent(LogEventRequest) returns (LogEventResponse);
+  
+  // Queries
+  rpc GetEvent(GetEventRequest) returns (AuditLogResponse);
+  rpc GetEvents(GetEventsRequest) returns (GetEventsResponse);
+  rpc SearchEvents(SearchRequest) returns (SearchResponse);
+  rpc GetSecurityAnalytics(AnalyticsRequest) returns (AnalyticsResponse);
+}
+
+// Matches your AuditLog and AuditEvent Prisma models
+message AuditLogResponse {
+  string id = 1;
+  string userId = 2;
+  string tenantId = 3;
+  string action = 4;
+  string resource = 5;
+  google.protobuf.Struct metadata = 6;
+  string timestamp = 7;
+  string ip = 8;
+  string userAgent = 9;
+  string deviceId = 10;
+  string traceId = 11;
+  string correlationId = 12;
+  string severity = 13;
+  string integrityHash = 14;
+}
+
+message LogEventRequest {
+  string userId = 1;
+  string tenantId = 2;
+  string action = 3;
+  string resource = 4;
+  google.protobuf.Struct metadata = 5;
+  string ip = 6;
+  string userAgent = 7;
+  string deviceId = 8;
+  string traceId = 9;
+  string correlationId = 10;
+}
+
+message LogEventResponse {
+  bool success = 1;
+  string eventId = 2;
+}
+
+message GetEventRequest {
+  string id = 1;
+}
+
+message GetEventsRequest {
+  string userId = 1;
+  string tenantId = 2;
+  string action = 3;
+  string startDate = 4;
+  string endDate = 5;
+  int32 limit = 6;
+  int32 offset = 7;
+}
+
+message GetEventsResponse {
+  repeated AuditLogResponse events = 1;
+  int32 total = 2;
+}
+
+message SearchRequest {
+  string query = 1;
+  int32 size = 2;
+  int32 from = 3;
+}
+
+message SearchResponse {
+  repeated AuditLogResponse results = 1;
+  int32 totalHits = 2;
+}
+
+message AnalyticsRequest {
+  int32 days = 1;
+}
+
+message AnalyticsResponse {
+  int64 totalSecurityEvents = 1;
+  google.protobuf.Struct timeline = 2;
+  google.protobuf.Struct breakdown = 3;
+}

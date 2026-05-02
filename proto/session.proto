@@ -1,0 +1,163 @@
+// protos/session.proto
+syntax = "proto3";
+
+package session;
+
+// Service definition
+service SessionService {
+  rpc CreateSession(CreateSessionRequest) returns (SessionResponse);
+  rpc GetSession(GetSessionRequest) returns (SessionResponse);
+  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse);
+  rpc UpdateActivity(UpdateActivityRequest) returns (UpdateActivityResponse);
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
+  rpc RevokeAllUserSessions(RevokeAllUserSessionsRequest) returns (RevokeAllUserSessionsResponse);
+  rpc GetUserSessions(GetUserSessionsRequest) returns (GetUserSessionsResponse);
+  rpc CheckHealth (HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Common types
+message RequestContext {
+  string traceId = 1;
+  string correlationId = 2;
+  string tenantId = 3;
+  string userId = 4;
+  int64 timestamp = 5;
+}
+
+// Create session
+message CreateSessionRequest {
+  RequestContext context = 1;
+  string userId = 2;
+  string tenantId = 3;
+  string refreshHash = 4;
+  string userAgent = 5;
+  string ipAddress = 6;
+  string csrfToken = 7;
+  map<string, string> metadata = 8;
+  int64 expiresAt = 9;
+  SessionOptions options = 10;
+}
+
+message SessionOptions {
+  int32 ttl = 1;
+}
+
+message SessionResponse {
+  string id = 1;
+  string userId = 2;
+  string tenantId = 3;
+  string refreshHash = 4;
+  string userAgent = 5;
+  string ipAddress = 6;
+  string csrfToken = 7;
+  map<string, string> metadata = 8;
+  bool isActive = 9;
+  bool revoked = 10;
+  bool isCompromised = 11;
+  int64 createdAt = 12;
+  int64 lastActiveAt = 13;
+  int64 lastActivityAt = 14;
+  int64 expiresAt = 15;
+  int64 updatedAt = 16;
+  SessionError error = 17;
+}
+
+message SessionError {
+  string code = 1;
+  string message = 2;
+}
+
+// Get session
+message GetSessionRequest {
+  RequestContext context = 1;
+  string sessionId = 2;
+  string refreshHash = 3;
+}
+
+// Validate session
+message ValidateSessionRequest {
+  RequestContext context = 1;
+  string sessionId = 2;
+  string csrfToken = 3;
+}
+
+message ValidateSessionResponse {
+  bool valid = 1;
+  string userId = 2;
+  string tenantId = 3;
+  string reason = 4;
+  SessionError error = 5;
+}
+
+// Update activity
+message UpdateActivityRequest {
+  RequestContext context = 1;
+  string sessionId = 2;
+  string ipAddress = 3;
+  string userAgent = 4;
+}
+
+message UpdateActivityResponse {
+  bool success = 1;
+  int64 lastActiveAt = 2;
+  SessionError error = 3;
+}
+
+// Revoke session
+message RevokeSessionRequest {
+  RequestContext context = 1;
+  string sessionId = 2;
+  string reason = 3;
+}
+
+message RevokeSessionResponse {
+  bool success = 1;
+  SessionError error = 2;
+}
+
+// Revoke all user sessions
+message RevokeAllUserSessionsRequest {
+  RequestContext context = 1;
+  string userId = 2;
+  string tenantId = 3;
+  string reason = 4;
+  string exceptSessionId = 5;
+}
+
+message RevokeAllUserSessionsResponse {
+  bool success = 1;
+  int32 sessionsRevoked = 2;
+  SessionError error = 3;
+}
+
+message GenericResponse {
+  bool success = 1;
+}
+
+// Get user sessions
+message GetUserSessionsRequest {
+  RequestContext context = 1;
+  string userId = 2;
+  string tenantId = 3;
+  bool activeOnly = 4;
+}
+
+message SessionInfo {
+  string id = 1;
+  string userAgent = 2;
+  string ipAddress = 3;
+  int64 createdAt = 4;
+  int64 lastActiveAt = 5;
+  bool isCurrent = 6;
+}
+
+message GetUserSessionsResponse {
+  repeated SessionInfo sessions = 1;
+  SessionError error = 2;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+}

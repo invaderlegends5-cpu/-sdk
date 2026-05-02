@@ -1,0 +1,228 @@
+syntax = "proto3";
+
+package controlplane;
+
+option go_package = "github.com/yourorg/sdk/go/proto/control-plane";
+
+import "common.proto";
+
+service ControlPlaneService {
+  // Get policy manifest - most called RPC
+  rpc GetPolicyManifest(GetPolicyManifestRequest) returns (GetPolicyManifestResponse);
+  
+  // Create capability tier
+  rpc CreateCapabilityTier(CreateCapabilityTierRequest) returns (CreateCapabilityTierResponse);
+  
+  // Update route policy
+  rpc UpdateRoutePolicy(UpdateRoutePolicyRequest) returns (UpdateRoutePolicyResponse);
+  
+  // Validate policy configuration
+  rpc ValidatePolicyConfiguration(ValidatePolicyConfigurationRequest) returns (ValidatePolicyConfigurationResponse);
+  
+  // Health check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // The real-time "Pulse" stream
+  rpc StreamPolicyUpdates(GetPolicyManifestRequest) returns (stream GetPolicyManifestResponse);
+
+   // --- Dashboard CRUD ---
+  rpc DeleteCapabilityTier(DeleteCapabilityTierRequest) returns (common.DeleteResponse);
+  rpc CreateRoutePolicy(CreateRoutePolicyRequest) returns (CreateRoutePolicyResponse);
+  rpc DeleteRoutePolicy(DeleteRoutePolicyRequest) returns (common.DeleteResponse);
+}
+
+// Get Policy Manifest
+message GetPolicyManifestRequest {
+  common.RequestContext context = 1;
+  string version = 2; // Optional specific version
+}
+
+message GetPolicyManifestResponse {
+  bool success = 1;
+  PolicyManifest manifest = 2;
+  common.ErrorResponse error = 3;
+}
+
+message PolicyManifest {
+  string version = 1;
+  int64 timestamp = 2;
+  repeated RoutePolicyManifest routes = 3;
+  repeated CapabilityTierManifest tiers = 4;
+  repeated FailurePolicyManifest failurePolicies = 5;
+  repeated TemporalRuleManifest temporalRules = 6;
+  repeated EnvironmentRuleManifest environmentRules = 7;
+  repeated UpgradePipelineManifest upgradePipelines = 8;
+}
+
+message RoutePolicyManifest {
+  string routePattern = 1;
+  string semantics = 2;
+  string requiredCapabilityTier = 3;
+  string intentClass = 4;
+  bool authRequired = 5;
+  bool tenantScopeRequired = 6;
+  string temporalRuleId = 7;
+  string failurePolicyId = 8;
+}
+
+message CapabilityTierManifest {
+  string name = 1;
+  string tierType = 2;
+  int32 order = 3;
+  repeated string upgradePathIds = 4;
+  map<string, string> expirationDefaults = 5;
+  map<string, string> permissions = 6;
+}
+
+message FailurePolicyManifest {
+  string name = 1;
+  string behaviorType = 2;
+  map<string, string> configuration = 3;
+}
+
+message TemporalRuleManifest {
+  string id = 1;
+  string name = 2;
+  string ruleType = 3;
+  map<string, string> configuration = 4;
+}
+
+message EnvironmentRuleManifest {
+  string environment = 1;
+  string routePattern = 2;
+  map<string, string> overrides = 3;
+}
+
+message UpgradePipelineManifest {
+  string fromTier = 1;
+  string toTier = 2;
+  map<string, string> preservedData = 3;
+  map<string, string> ownershipTransferRules = 4;
+  string sessionUpgradeBehavior = 5;
+}
+
+// Create Capability Tier
+message CreateCapabilityTierRequest {
+  common.RequestContext context = 1;
+  string name = 2;
+  string description = 3;
+  string tierType = 4;
+  int32 order = 5;
+  repeated string upgradePathIds = 6;
+  map<string, string> expirationDefaults = 7;
+  map<string, string> permissions = 8;
+  bool isActive = 9;
+  string tenantId = 10;
+}
+
+message CreateCapabilityTierResponse {
+  bool success = 1;
+  CapabilityTier tier = 2;
+  common.ErrorResponse error = 3;
+}
+
+message CapabilityTier {
+  string id = 1;
+  string tenantId = 2;
+  string name = 3;
+  string description = 4;
+  string tierType = 5;
+  int32 order = 6;
+  repeated string upgradePathIds = 7;
+  map<string, string> expirationDefaults = 8;
+  map<string, string> permissions = 9;
+  bool isActive = 10;
+  int64 createdAt = 11;
+  int64 updatedAt = 12;
+}
+
+// Update Route Policy
+message UpdateRoutePolicyRequest {
+  common.RequestContext context = 1;
+  string policyId = 2;
+  string routePattern = 3;
+  string semantics = 4;
+  string requiredCapabilityTier = 5;
+  string intentClass = 6;
+  bool authRequired = 7;
+  bool tenantScopeRequired = 8;
+  string temporalRuleId = 9;
+  string failurePolicyId = 10;
+}
+
+message UpdateRoutePolicyResponse {
+  bool success = 1;
+  RoutePolicy policy = 2;
+  common.ErrorResponse error = 3;
+}
+
+message RoutePolicy {
+  string id = 1;
+  string accessPolicyId = 2;
+  string routePattern = 3;
+  string semantics = 4;
+  string requiredCapabilityTier = 5;
+  string intentClass = 6;
+  bool authRequired = 7;
+  bool tenantScopeRequired = 8;
+  string temporalRuleId = 9;
+  string failurePolicyId = 10;
+  int64 createdAt = 11;
+  int64 updatedAt = 12;
+}
+
+// Validate Policy Configuration
+message ValidatePolicyConfigurationRequest {
+  common.RequestContext context = 1;
+}
+
+message ValidatePolicyConfigurationResponse {
+  bool isValid = 1;
+  repeated string issues = 2;
+  common.ErrorResponse error = 3;
+}
+
+// Health Check
+message HealthCheckRequest {
+  common.RequestContext context = 1;
+}
+
+message HealthCheckResponse {
+  bool isHealthy = 1;
+  string message = 2;
+  common.ErrorResponse error = 3;
+}
+
+// ============================================
+// DASHBOARD CRUD
+// ============================================
+
+message DeleteCapabilityTierRequest {
+  common.RequestContext context = 1;
+  string id = 2;
+  string tenant_id = 3;
+}
+
+message CreateRoutePolicyRequest {
+  common.RequestContext context = 1;
+  string tenant_id = 2;
+  string access_policy_id = 3;
+  string route_pattern = 4;
+  string semantics = 5;
+  string required_capability_tier = 6;
+  string intent_class = 7;
+  bool auth_required = 8;
+  bool tenant_scope_required = 9;
+}
+
+message CreateRoutePolicyResponse {
+  bool success = 1;
+  RoutePolicy policy = 2;
+  common.ErrorResponse error = 3;
+}
+
+message DeleteRoutePolicyRequest {
+  common.RequestContext context = 1;
+  string id = 2;
+  string tenant_id = 3;
+}
