@@ -5,8 +5,10 @@ export interface CoreIAMConfig {
 }
 export declare class CoreIAM {
     private apiKey;
+    private baseUrl;
     constructor(config?: {
         apiKey?: string;
+        baseUrl?: string;
     });
     proxy(path: string, init: RequestInit, incomingHeaders: Headers): Promise<Response>;
     getCsrfToken(headers: Headers): Promise<Response>;

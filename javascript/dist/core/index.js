@@ -7,18 +7,19 @@
 // //   }
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CoreIAM = void 0;
-const GATEWAY_URL = "https://api.e-qalam.com";
+const DEFAULT_GATEWAY_URL = "https://api.e-qalam.com";
 class CoreIAM {
     apiKey = '';
+    baseUrl = '';
     constructor(config) {
-        this.apiKey = config?.apiKey
-            || process.env.COREIAM_API_KEY
-            || '';
+        this.apiKey = config?.apiKey || process.env.COREIAM_API_KEY || '';
+        // Use the provided URL, or fallback to your default SaaS gateway
+        this.baseUrl = config?.baseUrl || DEFAULT_GATEWAY_URL;
         if (!this.apiKey)
             throw new Error('CoreIAM: Missing API Key');
     }
     async proxy(path, init, incomingHeaders) {
-        const url = `${GATEWAY_URL}${path}`;
+        const url = `${this.baseUrl}${path}`;
         const headers = new Headers(init.headers);
         if (this.apiKey) {
             headers.set('X-API-Key', this.apiKey);
