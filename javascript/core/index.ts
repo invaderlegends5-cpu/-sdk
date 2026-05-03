@@ -266,20 +266,22 @@ export interface CoreIAMConfig {
   tenantId?: string;
 }
 
-const GATEWAY_URL = "https://api.e-qalam.com";
+const DEFAULT_GATEWAY_URL = "https://api.e-qalam.com";
 
 export class CoreIAM {
   private apiKey: string = '';
+  private baseUrl: string = '';
 
-  constructor(config?: { apiKey?: string }) {
-    this.apiKey = config?.apiKey 
-      || process.env.COREIAM_API_KEY 
-      || '';
+  constructor(config?: { apiKey?: string; baseUrl?: string }) {
+    this.apiKey = config?.apiKey || process.env.COREIAM_API_KEY || '';
+    // Use the provided URL, or fallback to your default SaaS gateway
+    this.baseUrl = config?.baseUrl || DEFAULT_GATEWAY_URL; 
+    
     if (!this.apiKey) throw new Error('CoreIAM: Missing API Key');
   }
 
   async proxy(path: string, init: RequestInit, incomingHeaders: Headers) {
-    const url = `${GATEWAY_URL}${path}`;
+    const url = `${this.baseUrl}${path}`;
     const headers = new Headers(init.headers);
 
     if (this.apiKey) {
