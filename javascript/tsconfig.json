@@ -29,7 +29,8 @@
   },
   "include": [
     "core/**/*",
-    "index.ts"
+    "index.ts",
+    "nextjs/**/*",
   ],
   "exclude": [
     "node_modules",
