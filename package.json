@@ -24,8 +24,5 @@
       "import": "javascript/dist/nextjs/actions.js",
       "require": "javascript/dist/nextjs/actions.js"
     }
-  },
-  "scripts": {
-    "prepare": "cd javascript && npm install && npm run build"
   }
 }
