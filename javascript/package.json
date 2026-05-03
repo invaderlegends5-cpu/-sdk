@@ -13,41 +13,16 @@
       "types": "./dist/core/index.d.ts",
       "import": "./dist/core/index.js",
       "require": "./dist/core/index.js"
-    },
-    "./nextjs": {
-      "types": "./dist/nextjs/index.d.ts",
-      "import": "./dist/nextjs/index.js",
-      "require": "./dist/nextjs/index.js"
-    },
-    "./nextjs/actions": {
-      "types": "./dist/nextjs/actions.d.ts",
-      "import": "./dist/nextjs/actions.js",
-      "require": "./dist/nextjs/actions.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
-    "postinstall": "cp -r package.json tsconfig.json ../.. && npm run build"
-  },
-  "peerDependencies": {
-    "next": ">=13.0.0",
-    "react": ">=18.0.0"
-  },
-  "peerDependenciesMeta": {
-    "next": {
-      "optional": true
-    },
-    "react": {
-      "optional": true
-    }
+    "build": "tsc"
   },
   "devDependencies": {
-   
-  },
-  "dependencies": {
-     "typescript": "^5.0.0"
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
   }
 }
