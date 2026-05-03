@@ -1,3 +1,18 @@
+# Ignore everything
 *
+
+# UN-ignore the javascript folder itself
 !javascript/
-!javascript/**
+
+# UN-ignore only what the developer needs inside javascript
+!javascript/dist/
+!javascript/dist/**
+!javascript/package.json
+
+# Explicitly block the raw source files and build configs
+javascript/*.ts
+javascript/tsconfig.json
+javascript/.gitignore
+javascript/node_modules/
+javascript/package-lock.json
+javascript/proto/
