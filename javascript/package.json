@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "prepare": "npm run build"
+    "postinstall": "cp -r package.json tsconfig.json ../.. && npm run build"
   },
   "peerDependencies": {
     "next": ">=13.0.0",
