@@ -306,8 +306,13 @@ export class CoreIAM {
     return fetch(url, { ...init, headers });
   }
 
+//  async getCsrfToken(headers: Headers) {
+//    return this.proxy('/auth/csrf-token', { method: 'GET' }, headers);
+//  }
+
   async getCsrfToken(headers: Headers) {
-    return this.proxy('/auth/csrf-token', { method: 'GET' }, headers);
+    // Change method from 'GET' to 'POST'
+    return this.proxy('/auth/csrf-token', { method: 'POST' }, headers);
   }
 
   async login(body: any, headers: Headers) {

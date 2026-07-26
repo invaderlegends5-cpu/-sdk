@@ -40,8 +40,12 @@ class CoreIAM {
             headers.set('x-csrf-token', csrf);
         return fetch(url, { ...init, headers });
     }
+    //  async getCsrfToken(headers: Headers) {
+    //    return this.proxy('/auth/csrf-token', { method: 'GET' }, headers);
+    //  }
     async getCsrfToken(headers) {
-        return this.proxy('/auth/csrf-token', { method: 'GET' }, headers);
+        // Change method from 'GET' to 'POST'
+        return this.proxy('/auth/csrf-token', { method: 'POST' }, headers);
     }
     async login(body, headers) {
         return this.proxy('/auth/login', { method: 'POST', body: JSON.stringify(body) }, headers);

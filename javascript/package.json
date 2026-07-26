@@ -28,10 +28,6 @@
   "files": [
     "dist"
   ],
-  "scripts": {
-    "build": "tsc",
-    "postinstall": "cp -r package.json tsconfig.json ../.. && npm run build"
-  },
   "peerDependencies": {
     "next": ">=13.0.0",
     "react": ">=18.0.0"
