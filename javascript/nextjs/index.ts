@@ -88,13 +88,25 @@ export class NextHandlers {
       headers: { 'Content-Type': 'application/json' },
     }, req.headers);
 
+  //   const data = await response.json().catch(() => ({}));
+  //   const res = NextResponse.json(data, { status: response.status });
+
+  //   const setCookie = response.headers.get('set-cookie');
+  //   if (setCookie) res.headers.set('set-cookie', setCookie);
+
+  //   return res;
+  // }
     const data = await response.json().catch(() => ({}));
     const res = NextResponse.json(data, { status: response.status });
 
-    const setCookie = response.headers.get('set-cookie');
-    if (setCookie) res.headers.set('set-cookie', setCookie);
+    // FIX: Grab ALL Set-Cookie headers (jwt + refreshToken) and append them
+    const setCookies = response.headers.getSetCookie();
+    if (setCookies && setCookies.length > 0) {
+      setCookies.forEach(cookie => {
+        res.headers.append('set-cookie', cookie);
+      });
+    }
 
     return res;
   }
-
 }
