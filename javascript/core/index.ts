@@ -271,6 +271,8 @@ const DEFAULT_GATEWAY_URL = "https://api.e-qalam.com";
 export class CoreIAM {
   private apiKey: string = '';
   private baseUrl: string = '';
+  private isRefreshing = false;
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(config?: { apiKey?: string; baseUrl?: string }) {
     this.apiKey = config?.apiKey || process.env.COREIAM_API_KEY || '';
@@ -280,6 +282,36 @@ export class CoreIAM {
     if (!this.apiKey) throw new Error('CoreIAM: Missing API Key');
   }
 
+  // async proxy(path: string, init: RequestInit, incomingHeaders: Headers) {
+  //   const url = `${this.baseUrl}${path}`;
+  //   const headers = new Headers(init.headers);
+
+  //   if (this.apiKey) {
+  //     headers.set('X-API-Key', this.apiKey);
+  //   }
+  //   // if (this.tenantId) {
+  //   //   headers.set('X-Tenant-ID', this.tenantId);
+  //   // }
+
+  //   const cookie = incomingHeaders.get('cookie');
+  //   if (cookie) {
+  //     headers.set('cookie', cookie);
+  //     const jwtMatch = cookie.match(/jwt=([^;]+)/);
+  //     if (jwtMatch) {
+  //       headers.set('Authorization', `Bearer ${jwtMatch[1]}`);
+  //     }
+  //   }
+
+  //   const csrf = incomingHeaders.get('x-csrf-token');
+  //   if (csrf) headers.set('x-csrf-token', csrf);
+
+  //   return fetch(url, { ...init, headers });
+  // }
+
+//  async getCsrfToken(headers: Headers) {
+//    return this.proxy('/auth/csrf-token', { method: 'GET' }, headers);
+//  }
+
   async proxy(path: string, init: RequestInit, incomingHeaders: Headers) {
     const url = `${this.baseUrl}${path}`;
     const headers = new Headers(init.headers);
@@ -287,13 +319,11 @@ export class CoreIAM {
     if (this.apiKey) {
       headers.set('X-API-Key', this.apiKey);
     }
-    // if (this.tenantId) {
-    //   headers.set('X-Tenant-ID', this.tenantId);
-    // }
 
     const cookie = incomingHeaders.get('cookie');
     if (cookie) {
       headers.set('cookie', cookie);
+      // KEEP THIS: CoreIAM's JwtAuthGuard expects the Authorization header
       const jwtMatch = cookie.match(/jwt=([^;]+)/);
       if (jwtMatch) {
         headers.set('Authorization', `Bearer ${jwtMatch[1]}`);
@@ -303,12 +333,32 @@ export class CoreIAM {
     const csrf = incomingHeaders.get('x-csrf-token');
     if (csrf) headers.set('x-csrf-token', csrf);
 
-    return fetch(url, { ...init, headers });
-  }
+    // 1. Make the original request
+    let response = await fetch(url, { ...init, headers });
 
-//  async getCsrfToken(headers: Headers) {
-//    return this.proxy('/auth/csrf-token', { method: 'GET' }, headers);
-//  }
+    // 2. If we get a 401, attempt to refresh the token and retry ONCE
+    if (response.status === 401 && !headers.get('x-retry')) {
+      // Prevent multiple concurrent refresh requests
+      if (!this.isRefreshing) {
+        this.isRefreshing = true;
+        this.refreshPromise = this.refreshTokens(incomingHeaders);
+      }
+      
+      const refreshed = await this.refreshPromise;
+      this.isRefreshing = false;
+      this.refreshPromise = null;
+
+      if (refreshed) {
+        // Retry the original request with a custom header to prevent infinite loops
+        const retryHeaders = new Headers(headers);
+        retryHeaders.set('x-retry', 'true');
+        
+        response = await fetch(url, { ...init, headers: retryHeaders });
+      }
+    }
+
+    return response;
+  }
 
   async getCsrfToken(headers: Headers) {
     // Change method from 'GET' to 'POST'
@@ -382,5 +432,17 @@ export class CoreIAM {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     }, authHeaders);
+  }
+
+  async refreshTokens(headers: Headers): Promise<boolean> {
+    try {
+      const response = await this.proxy('/auth/refresh-token', { method: 'POST' }, headers);
+      if (response.ok) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      return false;
+    }
   }
 }
