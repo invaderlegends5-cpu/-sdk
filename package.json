@@ -1,31 +1,5 @@
 {
   "name": "@coreiam/sdk",
   "version": "1.0.1",
-  "main": "./javascript/dist/index.js",
-  "types": "./javascript/dist/index.d.ts",
-  "scripts": {
-    "prepare": "cd javascript && npm install && npx tsc"
-  },
-  "exports": {
-    ".": {
-      "types": "./javascript/dist/index.d.ts",
-      "import": "./javascript/dist/index.js",
-      "require": "./javascript/dist/index.js"
-    },
-    "./core": {
-      "types": "./javascript/dist/core/index.d.ts",
-      "import": "./javascript/dist/core/index.js",
-      "require": "./javascript/dist/core/index.js"
-    },
-    "./nextjs": {
-      "types": "./javascript/dist/nextjs/index.d.ts",
-      "import": "./javascript/dist/nextjs/index.js",
-      "require": "./javascript/dist/nextjs/index.js"
-    },
-    "./nextjs/actions": {
-      "types": "./javascript/dist/nextjs/actions.d.ts",
-      "import": "./javascript/dist/nextjs/actions.js",
-      "require": "./javascript/dist/nextjs/actions.js"
-    }
-  }
+  "directory": "javascript"
 }
