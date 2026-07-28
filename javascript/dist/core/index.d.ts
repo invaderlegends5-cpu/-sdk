@@ -6,6 +6,8 @@ export interface CoreIAMConfig {
 export declare class CoreIAM {
     private apiKey;
     private baseUrl;
+    private isRefreshing;
+    private refreshPromise;
     constructor(config?: {
         apiKey?: string;
         baseUrl?: string;
@@ -17,4 +19,5 @@ export declare class CoreIAM {
     logout(headers: Headers): Promise<Response>;
     loginWithCsrfProtection(identifier: string, password: string, incomingHeaders: Headers): Promise<Response>;
     registerWithCsrfProtection(userData: any, incomingHeaders: Headers): Promise<Response>;
+    refreshTokens(headers: Headers): Promise<boolean>;
 }
