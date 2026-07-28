@@ -272,7 +272,7 @@ export class CoreIAM {
   private apiKey: string = '';
   private baseUrl: string = '';
   private isRefreshing = false;
-  private refreshPromise: Promise<boolean> | null = null;
+  private refreshPromise: Promise<string[] | null> | null = null;
 
   constructor(config?: { apiKey?: string; baseUrl?: string }) {
     this.apiKey = config?.apiKey || process.env.COREIAM_API_KEY || '';
@@ -312,6 +312,29 @@ export class CoreIAM {
 //    return this.proxy('/auth/csrf-token', { method: 'GET' }, headers);
 //  }
 
+ async refreshTokens(headers: Headers): Promise<string[] | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/refresh-token`, {
+        method: 'POST',
+        headers: {
+          'X-API-Key': this.apiKey,
+          'cookie': headers.get('cookie') || '', // Send the refreshToken cookie
+        },
+      });
+
+      if (response.ok) {
+        // Node.js doesn't save cookies, so we must manually extract the new Set-Cookie headers
+        const setCookies = response.headers.getSetCookie();
+        if (setCookies && setCookies.length > 0) {
+          return setCookies; // Return the array of raw Set-Cookie strings
+        }
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   async proxy(path: string, init: RequestInit, incomingHeaders: Headers) {
     const url = `${this.baseUrl}${path}`;
     const headers = new Headers(init.headers);
@@ -338,27 +361,46 @@ export class CoreIAM {
 
     // 2. If we get a 401, attempt to refresh the token and retry ONCE
     if (response.status === 401 && !headers.get('x-retry')) {
-      // Prevent multiple concurrent refresh requests
       if (!this.isRefreshing) {
         this.isRefreshing = true;
         this.refreshPromise = this.refreshTokens(incomingHeaders);
       }
       
-      const refreshed = await this.refreshPromise;
+      const newSetCookies = await this.refreshPromise;
       this.isRefreshing = false;
       this.refreshPromise = null;
 
-      if (refreshed) {
-        // Retry the original request with a custom header to prevent infinite loops
+      if (newSetCookies && newSetCookies.length > 0) {
+        // Combine the new cookies into a single string for the retry request
+        const cookieStr = newSetCookies.map(c => c.split(';')[0]).join('; ');
+        
         const retryHeaders = new Headers(headers);
         retryHeaders.set('x-retry', 'true');
+        retryHeaders.set('cookie', cookieStr);
         
+        // Update the Authorization header with the new JWT
+        const newJwtMatch = cookieStr.match(/jwt=([^;]+)/);
+        if (newJwtMatch) {
+          retryHeaders.set('Authorization', `Bearer ${newJwtMatch[1]}`);
+        }
+
+        // Make the retry request with the fresh token
         response = await fetch(url, { ...init, headers: retryHeaders });
+        
+        // CRITICAL: Manually append the new Set-Cookie headers to the final response.
+        // This allows your nextjs/index.ts file to read them and sync them to the browser!
+        const modifiedResponse = new Response(response.body, response);
+        newSetCookies.forEach(c => {
+          modifiedResponse.headers.append('set-cookie', c);
+        });
+        
+        return modifiedResponse;
       }
     }
 
     return response;
   }
+
 
   async getCsrfToken(headers: Headers) {
     // Change method from 'GET' to 'POST'
@@ -445,85 +487,5 @@ export class CoreIAM {
   //     return false;
   //   }
   // }
-
-    // 1. Update refreshTokens to return the new cookie string
-  async refreshTokens(headers: Headers): Promise<string | null> {
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/refresh-token`, {
-        method: 'POST',
-        headers: {
-          'X-API-Key': this.apiKey,
-          'cookie': headers.get('cookie') || '', // Send the refreshToken cookie
-        },
-      });
-
-      if (response.ok) {
-        // Node.js doesn't save cookies, so we must manually extract the new Set-Cookie headers
-        const setCookies = response.headers.getSetCookie();
-        if (setCookies && setCookies.length > 0) {
-          // Combine the new cookies into a single string (e.g., "jwt=123; refreshToken=456")
-          return setCookies.map(c => c.split(';')[0]).join('; ');
-        }
-      }
-      return null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  // 2. Update the interceptor inside proxy()
-  async proxy(path: string, init: RequestInit, incomingHeaders: Headers) {
-    const url = `${this.baseUrl}${path}`;
-    const headers = new Headers(init.headers);
-
-    if (this.apiKey) {
-      headers.set('X-API-Key', this.apiKey);
-    }
-
-    const cookie = incomingHeaders.get('cookie');
-    if (cookie) {
-      headers.set('cookie', cookie);
-      const jwtMatch = cookie.match(/jwt=([^;]+)/);
-      if (jwtMatch) {
-        headers.set('Authorization', `Bearer ${jwtMatch[1]}`);
-      }
-    }
-
-    const csrf = incomingHeaders.get('x-csrf-token');
-    if (csrf) headers.set('x-csrf-token', csrf);
-
-    // Make the original request
-    let response = await fetch(url, { ...init, headers });
-
-    // If we get a 401, attempt to refresh the token and retry ONCE
-    if (response.status === 401 && !headers.get('x-retry')) {
-      if (!this.isRefreshing) {
-        this.isRefreshing = true;
-        this.refreshPromise = this.refreshTokens(incomingHeaders);
-      }
-      
-      const newCookies = await this.refreshPromise;
-      this.isRefreshing = false;
-      this.refreshPromise = null;
-
-      if (newCookies) {
-        // Retry the original request, but override the cookie header with the NEW jwt!
-        const retryHeaders = new Headers(headers);
-        retryHeaders.set('x-retry', 'true');
-        retryHeaders.set('cookie', newCookies);
-        
-        // Also update the Authorization header with the new JWT
-        const newJwtMatch = newCookies.match(/jwt=([^;]+)/);
-        if (newJwtMatch) {
-          retryHeaders.set('Authorization', `Bearer ${newJwtMatch[1]}`);
-        }
-
-        // Make the retry request with the fresh token
-        response = await fetch(url, { ...init, headers: retryHeaders });
-      }
-    }
-
-    return response;
-  }
-
+ 
 }

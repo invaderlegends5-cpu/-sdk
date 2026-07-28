@@ -12,6 +12,7 @@ export declare class CoreIAM {
         apiKey?: string;
         baseUrl?: string;
     });
+    refreshTokens(headers: Headers): Promise<string[] | null>;
     proxy(path: string, init: RequestInit, incomingHeaders: Headers): Promise<Response>;
     getCsrfToken(headers: Headers): Promise<Response>;
     login(body: any, headers: Headers): Promise<Response>;
@@ -19,5 +20,4 @@ export declare class CoreIAM {
     logout(headers: Headers): Promise<Response>;
     loginWithCsrfProtection(identifier: string, password: string, incomingHeaders: Headers): Promise<Response>;
     registerWithCsrfProtection(userData: any, incomingHeaders: Headers): Promise<Response>;
-    refreshTokens(headers: Headers): Promise<boolean>;
 }
