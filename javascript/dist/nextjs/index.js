@@ -39,8 +39,36 @@ class NextHandlers {
     constructor(iam) {
         this.iam = iam;
     }
-    async handleProxy(req, internalPath) {
+    /**
+      async handleProxy(req: NextRequest, internalPath: string) {
         const body = req.method !== 'GET' ? await req.json().catch(() => undefined) : undefined;
+        
+        let targetPath = internalPath;
+        if (internalPath === '/csrf') {
+          targetPath = '/auth/csrf-token';
+        } else if (!internalPath.startsWith('/auth')) {
+          targetPath = `/auth${internalPath}`;
+        }
+    
+        const response = await this.iam.proxy(targetPath, {
+          method: req.method,
+          body: body ? JSON.stringify(body) : undefined,
+          headers: { 'Content-Type': 'application/json' },
+        }, req.headers);
+    
+        const data = await response.json().catch(() => ({}));
+        const res = NextResponse.json(data, { status: response.status });
+    
+        const setCookie = response.headers.get('set-cookie');
+        if (setCookie) res.headers.set('set-cookie', setCookie);
+    
+        return res;
+      }
+    */
+    async handleProxy(req, internalPath) {
+        // Force POST for csrf token route
+        const method = internalPath === '/csrf' ? 'POST' : req.method;
+        const body = method !== 'GET' ? await req.json().catch(() => undefined) : undefined;
         let targetPath = internalPath;
         if (internalPath === '/csrf') {
             targetPath = '/auth/csrf-token';
@@ -49,15 +77,25 @@ class NextHandlers {
             targetPath = `/auth${internalPath}`;
         }
         const response = await this.iam.proxy(targetPath, {
-            method: req.method,
+            method: method, // Use the overridden method
             body: body ? JSON.stringify(body) : undefined,
             headers: { 'Content-Type': 'application/json' },
         }, req.headers);
+        //   const data = await response.json().catch(() => ({}));
+        //   const res = NextResponse.json(data, { status: response.status });
+        //   const setCookie = response.headers.get('set-cookie');
+        //   if (setCookie) res.headers.set('set-cookie', setCookie);
+        //   return res;
+        // }
         const data = await response.json().catch(() => ({}));
         const res = server_1.NextResponse.json(data, { status: response.status });
-        const setCookie = response.headers.get('set-cookie');
-        if (setCookie)
-            res.headers.set('set-cookie', setCookie);
+        // FIX: Grab ALL Set-Cookie headers (jwt + refreshToken) and append them
+        const setCookies = response.headers.getSetCookie();
+        if (setCookies && setCookies.length > 0) {
+            setCookies.forEach(cookie => {
+                res.headers.append('set-cookie', cookie);
+            });
+        }
         return res;
     }
 }

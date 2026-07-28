@@ -6,10 +6,13 @@ export interface CoreIAMConfig {
 export declare class CoreIAM {
     private apiKey;
     private baseUrl;
+    private isRefreshing;
+    private refreshPromise;
     constructor(config?: {
         apiKey?: string;
         baseUrl?: string;
     });
+    refreshTokens(headers: Headers): Promise<string[] | null>;
     proxy(path: string, init: RequestInit, incomingHeaders: Headers): Promise<Response>;
     getCsrfToken(headers: Headers): Promise<Response>;
     login(body: any, headers: Headers): Promise<Response>;

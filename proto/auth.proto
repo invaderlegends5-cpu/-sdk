@@ -155,6 +155,7 @@ message RequestOtpResponse {
   bool sent = 1;
   string message = 2;
   common.ErrorResponse error = 3;
+string dev_otp = 4;
 }
 
 message VerifyOtpRequest {
