@@ -186,3 +186,17 @@ export async function logoutActionSdk(): Promise<AuthResult> {
     return { ok: false, status: 500, data: { error: 'Logout failed' } };
   }
 }
+
+export async function initiateOAuthActionSdk(provider: string, redirectUri: string) {
+  const iam = new CoreIAM();
+  // We don't need cookies here, just the API key
+  const response = await iam.proxy(`/auth/oauth/initiate/${provider}?redirectUri=${encodeURIComponent(redirectUri)}&scopes=email,profile`, {
+    method: 'GET',
+  }, new Headers());
+
+  const data = await response.json();
+  if (data.url) {
+    // Redirect the browser to Google/GitHub
+    window.location.href = data.url;
+  }
+}
