@@ -343,6 +343,12 @@ export class CoreIAM {
       headers.set('X-API-Key', this.apiKey);
     }
 
+const userAgent = incomingHeaders.get('user-agent');
+    if (userAgent) headers.set('user-agent', userAgent);
+    
+    const forwardedFor = incomingHeaders.get('x-forwarded-for');
+    if (forwardedFor) headers.set('x-forwarded-for', forwardedFor);
+
     const cookie = incomingHeaders.get('cookie');
     if (cookie) {
       headers.set('cookie', cookie);
