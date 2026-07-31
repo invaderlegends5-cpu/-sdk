@@ -6,3 +6,4 @@ export interface AuthResult {
 export declare function loginActionSdk(identifier: string, password: string): Promise<AuthResult>;
 export declare function registerActionSdk(userData: any): Promise<AuthResult>;
 export declare function logoutActionSdk(): Promise<AuthResult>;
+export declare function initiateOAuthActionSdk(provider: string, redirectUri: string): Promise<void>;

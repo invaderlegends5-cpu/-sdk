@@ -5,6 +5,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.loginActionSdk = loginActionSdk;
 exports.registerActionSdk = registerActionSdk;
 exports.logoutActionSdk = logoutActionSdk;
+exports.initiateOAuthActionSdk = initiateOAuthActionSdk;
 const headers_1 = require("next/headers");
 const core_1 = require("../core");
 /**
@@ -168,5 +169,17 @@ async function logoutActionSdk() {
     }
     catch (error) {
         return { ok: false, status: 500, data: { error: 'Logout failed' } };
+    }
+}
+async function initiateOAuthActionSdk(provider, redirectUri) {
+    const iam = new core_1.CoreIAM();
+    // We don't need cookies here, just the API key
+    const response = await iam.proxy(`/auth/oauth/initiate/${provider}?redirectUri=${encodeURIComponent(redirectUri)}&scopes=email,profile`, {
+        method: 'GET',
+    }, new Headers());
+    const data = await response.json();
+    if (data.url) {
+        // Redirect the browser to Google/GitHub
+        window.location.href = data.url;
     }
 }
